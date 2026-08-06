@@ -1,0 +1,190 @@
+{% extends "base.html" %}
+{% block title %}{% if venta %}Editar venta{% else %}Nueva venta{% endif %}{% endblock %}
+{% block content %}
+{{ precios_producto|json_script:"precios-producto" }}
+{{ descripciones_producto|json_script:"descripciones-producto" }}
+<h2 class="mb-4">{% if venta %}Editar venta {{ venta.numero }}{% else %}Nueva venta{% endif %}</h2>
+
+<form method="post" id="venta-form">
+    {% csrf_token %}
+    <div class="card card-kpi p-4 mb-3">
+        <div class="row g-3">
+            <div class="col-md-6">
+                <label class="form-label">Cliente</label>
+                <div class="d-flex gap-2">
+                    {{ form.cliente }}
+                    <button type="button" id="abrir-modal-cliente" class="btn btn-outline-primary" style="white-space:nowrap;">
+                        <i class="bi bi-plus-lg"></i> Nuevo
+                    </button>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">IVA (%)</label>
+                {{ form.impuesto_porcentaje }}
+                <small class="text-muted">Tarifa general en Colombia: 19%</small>
+            </div>
+            <div class="col-12">
+                <label class="form-label">Notas</label>
+                {{ form.notas }}
+            </div>
+        </div>
+    </div>
+
+    <div class="card card-kpi p-4">
+        <h6>Productos</h6>
+        {{ formset.management_form }}
+        {% if formset.non_form_errors %}
+            <div class="alert alert-danger">{{ formset.non_form_errors }}</div>
+        {% endif %}
+        <table class="table" id="lineas-table">
+            <thead><tr><th style="width:40%">Producto</th><th>Cantidad</th><th>Precio unitario</th><th>Subtotal</th><th>Eliminar</th></tr></thead>
+            <tbody>
+            {% for f in formset %}
+                <tr class="linea-form">
+                    {{ f.id }}
+                    <td>
+                        {{ f.producto }}
+                        <div class="small text-muted descripcion-texto"></div>
+                    </td>
+                    <td>{{ f.cantidad }}</td>
+                    <td>{{ f.precio_unitario }}</td>
+                    <td class="subtotal-cell align-middle">0.00</td>
+                    <td class="align-middle">
+                        {% if f.DELETE %}{{ f.DELETE }}{% endif %}
+                    </td>
+                </tr>
+                {% if f.errors %}
+                    <tr><td colspan="5" class="text-danger small">{{ f.errors }}</td></tr>
+                {% endif %}
+            {% endfor %}
+            </tbody>
+        </table>
+        <div class="d-flex gap-2">
+            <button type="button" id="agregar-linea" class="btn btn-sm btn-outline-primary" style="width:fit-content;">
+                <i class="bi bi-plus-lg me-1"></i>Agregar línea
+            </button>
+            <button type="button" id="abrir-modal-producto" class="btn btn-sm btn-outline-primary" style="width:fit-content;">
+                <i class="bi bi-plus-lg me-1"></i>Nuevo producto/servicio
+            </button>
+        </div>
+
+        <div class="text-end mt-3">
+            <div>Subtotal: <strong id="total-subtotal">0.00</strong></div>
+            <div>IVA: <strong id="total-impuesto">0.00</strong></div>
+            <div class="fs-5">Total: <strong id="total-total">0.00</strong></div>
+        </div>
+    </div>
+
+    <div class="mt-3">
+        <button type="submit" class="btn btn-primary">Guardar borrador</button>
+        <a href="{% if venta %}{% url 'ventas:venta_detalle' venta.pk %}{% else %}{% url 'ventas:venta_lista' %}{% endif %}" class="btn btn-outline-secondary">Cancelar</a>
+    </div>
+</form>
+
+{% include "ventas/_modal_cliente_rapido.html" %}
+{% include "ventas/_modal_producto_rapido.html" %}
+
+<div id="empty-form" class="d-none">
+    <table><tbody>
+        <tr class="linea-form">
+            {{ formset.empty_form.id }}
+            <td>
+                {{ formset.empty_form.producto }}
+                <div class="small text-muted descripcion-texto"></div>
+            </td>
+            <td>{{ formset.empty_form.cantidad }}</td>
+            <td>{{ formset.empty_form.precio_unitario }}</td>
+            <td class="subtotal-cell">0.00</td>
+            <td>{{ formset.empty_form.DELETE }}</td>
+        </tr>
+    </tbody></table>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const preciosProducto = JSON.parse(document.getElementById('precios-producto').textContent);
+const descripcionesProducto = JSON.parse(document.getElementById('descripciones-producto').textContent);
+const totalFormsInput = document.querySelector('#id_lineas-TOTAL_FORMS');
+const tableBody = document.querySelector('#lineas-table tbody');
+
+function formatoCOP(valor) {
+    return Math.round(valor || 0).toLocaleString('es-CO');
+}
+
+function actualizarDescripcion(row) {
+    const productoSelect = row.querySelector('select[name$="-producto"]');
+    const descripcionDiv = row.querySelector('.descripcion-texto');
+    if (!productoSelect || !descripcionDiv) return;
+    descripcionDiv.textContent = descripcionesProducto[productoSelect.value] || '';
+}
+
+function recalcularFila(row) {
+    const cantidadInput = row.querySelector('input[name$="-cantidad"]');
+    const precioInput = row.querySelector('input[name$="-precio_unitario"]');
+    const productoSelect = row.querySelector('select[name$="-producto"]');
+    const subtotalCell = row.querySelector('.subtotal-cell');
+
+    if (productoSelect && precioInput && !precioInput.dataset.touched) {
+        const precio = preciosProducto[productoSelect.value];
+        if (precio) precioInput.value = precio;
+    }
+
+    const cantidad = parseFloat(cantidadInput?.value || 0);
+    const precio = parseFloat(precioInput?.value || 0);
+    const subtotal = (cantidad * precio) || 0;
+    subtotalCell.textContent = formatoCOP(subtotal);
+    return subtotal;
+}
+
+function recalcularTotales() {
+    let subtotalGeneral = 0;
+    document.querySelectorAll('.linea-form').forEach(row => {
+        if (row.closest('#empty-form')) return;
+        const deleteCheckbox = row.querySelector('input[type="checkbox"][name$="-DELETE"]');
+        if (deleteCheckbox && deleteCheckbox.checked) {
+            row.style.display = 'none';
+            return;
+        }
+        subtotalGeneral += recalcularFila(row);
+    });
+    const impuestoPct = parseFloat(document.querySelector('#id_impuesto_porcentaje')?.value || 0);
+    const impuesto = subtotalGeneral * impuestoPct / 100;
+    document.querySelector('#total-subtotal').textContent = formatoCOP(subtotalGeneral);
+    document.querySelector('#total-impuesto').textContent = formatoCOP(impuesto);
+    document.querySelector('#total-total').textContent = formatoCOP(subtotalGeneral + impuesto);
+}
+
+document.addEventListener('input', (e) => {
+    if (e.target.name && e.target.name.endsWith('-precio_unitario')) {
+        e.target.dataset.touched = '1';
+    }
+    if (e.target.name && e.target.name.endsWith('-producto')) {
+        actualizarDescripcion(e.target.closest('tr'));
+    }
+    if (e.target.matches('select, input')) recalcularTotales();
+});
+document.addEventListener('change', (e) => {
+    if (e.target.name && e.target.name.endsWith('-producto')) {
+        const row = e.target.closest('tr');
+        const precioInput = row.querySelector('input[name$="-precio_unitario"]');
+        delete precioInput.dataset.touched;
+        actualizarDescripcion(row);
+    }
+    recalcularTotales();
+});
+
+document.querySelector('#agregar-linea').addEventListener('click', () => {
+    const formIndex = parseInt(totalFormsInput.value, 10);
+    const emptyFormTemplate = document.querySelector('#empty-form tr').outerHTML;
+    const newRowHtml = emptyFormTemplate.replaceAll('__prefix__', formIndex);
+    tableBody.insertAdjacentHTML('beforeend', newRowHtml);
+    totalFormsInput.value = formIndex + 1;
+});
+
+document.querySelectorAll('.linea-form').forEach(row => {
+    if (!row.closest('#empty-form')) actualizarDescripcion(row);
+});
+recalcularTotales();
+</script>
+{% endblock %}

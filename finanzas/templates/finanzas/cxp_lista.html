@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% load money %}
+{% block title %}Cuentas por pagar{% endblock %}
+{% block content %}
+<h2 class="mb-4">Cuentas por pagar</h2>
+
+<form class="row g-2 mb-3" method="get">
+    <div class="col-auto">
+        <select name="estado" class="form-select" onchange="this.form.submit()">
+            <option value="">Todos los estados</option>
+            <option value="pendiente" {% if estado == "pendiente" %}selected{% endif %}>Pendiente</option>
+            <option value="parcial" {% if estado == "parcial" %}selected{% endif %}>Pago parcial</option>
+            <option value="pagada" {% if estado == "pagada" %}selected{% endif %}>Pagada</option>
+            <option value="anulada" {% if estado == "anulada" %}selected{% endif %}>Anulada</option>
+        </select>
+    </div>
+</form>
+
+<div class="card card-kpi">
+    <div class="table-responsive">
+        <table class="table table-hover mb-0 align-middle">
+            <thead><tr><th>Origen</th><th>Contraparte</th><th>Estado</th><th class="text-end">Monto total</th><th class="text-end">Saldo pendiente</th></tr></thead>
+            <tbody>
+            {% for cuenta in cuentas %}
+                <tr onclick="window.location='{% url 'finanzas:cxp_detalle' cuenta.pk %}'" style="cursor:pointer">
+                    <td>{{ cuenta.origen }}</td>
+                    <td>{{ cuenta.contraparte }}</td>
+                    <td>
+                        {% if cuenta.estado == "pagada" %}
+                            <span class="badge bg-success">Pagada</span>
+                        {% elif cuenta.estado == "parcial" %}
+                            <span class="badge bg-info text-dark">Pago parcial</span>
+                        {% elif cuenta.estado == "anulada" %}
+                            <span class="badge bg-secondary">Anulada</span>
+                        {% else %}
+                            <span class="badge bg-warning text-dark">Pendiente</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-end">{{ cuenta.monto_total|cop }}</td>
+                    <td class="text-end">{{ cuenta.saldo_pendiente|cop }}</td>
+                </tr>
+            {% empty %}
+                <tr><td colspan="5" class="text-center text-muted py-4">No hay cuentas por pagar</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% load money %}
+{% block title %}Venta {{ venta.numero }}{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-start mb-4">
+    <div>
+        <h2 class="mb-0">Venta {{ venta.numero }}</h2>
+        <span class="text-muted">Cliente: {{ venta.cliente }} · Vendedor: {{ venta.vendedor|default:"—" }}{% if venta.numero_factura %} · Factura N° {{ venta.numero_factura }}{% endif %}</span>
+    </div>
+    <div>
+        {% if venta.estado == "confirmada" %}
+            <span class="badge bg-success fs-6">Confirmada</span>
+        {% elif venta.estado == "anulada" %}
+            <span class="badge bg-secondary fs-6">Anulada</span>
+        {% else %}
+            <span class="badge bg-warning text-dark fs-6">Borrador</span>
+        {% endif %}
+    </div>
+</div>
+
+<div class="card card-kpi">
+    <div class="table-responsive">
+        <table class="table mb-0">
+            <thead><tr><th>Producto</th><th class="text-end">Cantidad</th><th class="text-end">Precio unitario</th><th class="text-end">Subtotal</th></tr></thead>
+            <tbody>
+            {% for linea in venta.lineas.all %}
+                <tr>
+                    <td>{{ linea.producto }}</td>
+                    <td class="text-end">{{ linea.cantidad }}</td>
+                    <td class="text-end">{{ linea.precio_unitario|cop }}</td>
+                    <td class="text-end">{{ linea.subtotal|cop }}</td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <div class="card-body text-end">
+        <div>Subtotal: <strong>{{ venta.subtotal|cop }}</strong></div>
+        <div>IVA ({{ venta.impuesto_porcentaje }}%): <strong>{{ venta.impuesto_valor|cop }}</strong></div>
+        <div class="fs-5">Total: <strong>{{ venta.total|cop }}</strong></div>
+    </div>
+</div>
+
+{% if venta.notas %}
+<div class="alert alert-light border mt-3"><strong>Notas:</strong> {{ venta.notas }}</div>
+{% endif %}
+
+{% if venta.estado == "confirmada" %}
+    {% if venta.numero_factura %}
+        <div class="card card-kpi p-3 mt-3" style="max-width:480px;">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <small class="text-muted text-uppercase">Factura</small>
+                    <div class="fs-5 fw-bold">N° {{ venta.numero_factura }}</div>
+                    <small class="text-muted">Facturada el {{ venta.facturada_en|date:"d/m/Y H:i" }}</small>
+                </div>
+                <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="collapse" data-bs-target="#corregirFactura">
+                    <i class="bi bi-pencil me-1"></i>Corregir
+                </button>
+            </div>
+            <div class="collapse mt-3" id="corregirFactura">
+                <form method="post" action="{% url 'ventas:venta_corregir_factura' venta.pk %}" class="d-flex gap-2">
+                    {% csrf_token %}
+                    <input type="text" name="numero_factura" class="form-control" value="{{ venta.numero_factura }}" required>
+                    <button type="submit" class="btn btn-outline-primary text-nowrap">Guardar</button>
+                </form>
+            </div>
+        </div>
+    {% else %}
+        <div class="card card-kpi p-3 mt-3" style="max-width:480px;">
+            <h6 class="mb-2">Facturar venta</h6>
+            <p class="text-muted small mb-2">Ingresa el número de factura (tu propio consecutivo). Las siguientes ventas sugerirán el consecutivo automáticamente.</p>
+            <form method="post" action="{% url 'ventas:venta_facturar' venta.pk %}" class="d-flex gap-2">
+                {% csrf_token %}
+                <input type="text" name="numero_factura" class="form-control" value="{{ sugerencia_factura }}" placeholder="Ej. 1001" required>
+                <button type="submit" class="btn btn-success text-nowrap"><i class="bi bi-receipt me-1"></i>Facturar</button>
+            </form>
+        </div>
+    {% endif %}
+{% endif %}
+
+<div class="mt-4 d-flex gap-2">
+    {% if venta.editable %}
+        <a href="{% url 'ventas:venta_editar' venta.pk %}" class="btn btn-outline-secondary">Editar</a>
+        <form method="post" action="{% url 'ventas:venta_confirmar' venta.pk %}" onsubmit="return confirm('¿Confirmar esta venta? Esto descontará el stock del inventario.');">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-success">Confirmar venta</button>
+        </form>
+    {% elif venta.estado == "confirmada" %}
+        <form method="post" action="{% url 'ventas:venta_anular' venta.pk %}" onsubmit="return confirm('¿Anular esta venta? El stock será devuelto al inventario.');">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-outline-danger">Anular venta</button>
+        </form>
+    {% endif %}
+    <a href="{% url 'ventas:venta_lista' %}" class="btn btn-outline-secondary">Volver</a>
+</div>
+{% endblock %}

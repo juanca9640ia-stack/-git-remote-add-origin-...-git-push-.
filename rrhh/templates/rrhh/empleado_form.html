@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block title %}{% if empleado %}Editar empleado{% else %}Nuevo empleado{% endif %}{% endblock %}
+{% block content %}
+<h2 class="mb-4">{% if empleado %}Editar empleado{% else %}Nuevo empleado{% endif %}</h2>
+<div class="card card-kpi p-4" style="max-width:640px;">
+    <form method="post">
+        {% csrf_token %}
+        <div class="row g-3">
+            <div class="col-12">
+                <label class="form-label">Nombre completo *</label>
+                {{ form.nombre_completo }}
+                {% if form.nombre_completo.errors %}<div class="text-danger small">{{ form.nombre_completo.errors|join:" " }}</div>{% endif %}
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Cédula/Documento *</label>
+                {{ form.documento }}
+                {% if form.documento.errors %}<div class="text-danger small">{{ form.documento.errors|join:" " }}</div>{% endif %}
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Cargo *</label>
+                {{ form.cargo }}
+                {% if form.cargo.errors %}<div class="text-danger small">{{ form.cargo.errors|join:" " }}</div>{% endif %}
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Departamento</label>
+                {{ form.departamento }}
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Fecha de contratación</label>
+                {{ form.fecha_contratacion }}
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Email</label>
+                {{ form.email }}
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Teléfono *</label>
+                {{ form.telefono }}
+                {% if form.telefono.errors %}<div class="text-danger small">{{ form.telefono.errors|join:" " }}</div>{% endif %}
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Tipo de pago</label>
+                {{ form.tipo_pago }}
+            </div>
+            <div class="col-md-6" id="campo-salario-base">
+                <label class="form-label">Salario base *</label>
+                {{ form.salario_base }}
+                {% if form.salario_base.errors %}<div class="text-danger small">{{ form.salario_base.errors|join:" " }}</div>{% endif %}
+            </div>
+            <div class="col-md-6" id="campo-valor-dia">
+                <label class="form-label">Valor por día *</label>
+                {{ form.valor_dia }}
+                {% if form.valor_dia.errors %}<div class="text-danger small">{{ form.valor_dia.errors|join:" " }}</div>{% endif %}
+            </div>
+            <div class="col-12 form-check">
+                {{ form.activo }}
+                <label class="form-check-label">Activo</label>
+            </div>
+        </div>
+        <p class="text-muted small mt-3 mb-0">* Campos obligatorios</p>
+        <div class="mt-4">
+            <button type="submit" class="btn btn-primary">Guardar</button>
+            <a href="{% url 'rrhh:empleado_lista' %}" class="btn btn-outline-secondary">Cancelar</a>
+        </div>
+    </form>
+</div>
+<script>
+(function () {
+    var tipoPago = document.getElementById('{{ form.tipo_pago.id_for_label }}');
+    var campoSalario = document.getElementById('campo-salario-base');
+    var campoDia = document.getElementById('campo-valor-dia');
+
+    function actualizar() {
+        var esDia = tipoPago.value === 'dia';
+        campoSalario.style.display = esDia ? 'none' : '';
+        campoDia.style.display = esDia ? '' : 'none';
+    }
+
+    tipoPago.addEventListener('change', actualizar);
+    actualizar();
+})();
+</script>
+{% endblock %}

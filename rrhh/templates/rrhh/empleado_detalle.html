@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% load money %}
+{% block title %}{{ empleado.nombre_completo }}{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-start mb-4">
+    <div>
+        <h2 class="mb-0">{{ empleado.nombre_completo }}</h2>
+        <span class="text-muted">{{ empleado.cargo }} {% if empleado.departamento %}· {{ empleado.departamento }}{% endif %}</span>
+    </div>
+    <a href="{% url 'rrhh:empleado_editar' empleado.pk %}" class="btn btn-outline-secondary"><i class="bi bi-pencil me-1"></i>Editar</a>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="card card-kpi p-3">
+            <small class="text-muted text-uppercase">Documento</small>
+            <div class="fs-6 fw-bold">{{ empleado.documento }}</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card card-kpi p-3">
+            <small class="text-muted text-uppercase">{% if empleado.tipo_pago == "dia" %}Valor por día{% else %}Salario base{% endif %}</small>
+            <div class="fs-6 fw-bold">
+                {% if empleado.tipo_pago == "dia" %}{{ empleado.valor_dia|cop }}{% else %}{{ empleado.salario_base|cop }}{% endif %}
+            </div>
+            <div class="small text-muted">{{ empleado.get_tipo_pago_display }}</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card card-kpi p-3">
+            <small class="text-muted text-uppercase">Fecha de contratación</small>
+            <div class="fs-6 fw-bold">{{ empleado.fecha_contratacion|date:"d/m/Y" }}</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card card-kpi p-3">
+            <small class="text-muted text-uppercase">Contacto</small>
+            <div class="small">{{ empleado.email|default:"—" }}<br>{{ empleado.telefono|default:"—" }}</div>
+        </div>
+    </div>
+</div>
+
+<div class="card card-kpi mb-4">
+    <div class="card-header bg-white fw-bold">Asistencia reciente</div>
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead><tr><th>Fecha</th><th>Estado</th><th>Entrada</th><th>Salida</th></tr></thead>
+            <tbody>
+            {% for asistencia in asistencias %}
+                <tr>
+                    <td>{{ asistencia.fecha|date:"d/m/Y" }}</td>
+                    <td>{{ asistencia.get_estado_display }}</td>
+                    <td>{{ asistencia.hora_entrada|default:"—" }}</td>
+                    <td>{{ asistencia.hora_salida|default:"—" }}</td>
+                </tr>
+            {% empty %}
+                <tr><td colspan="4" class="text-center text-muted py-3">Sin registros de asistencia</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="card card-kpi">
+    <div class="card-header bg-white fw-bold d-flex justify-content-between align-items-center">
+        Préstamos
+        <a href="{% url 'rrhh:prestamo_crear' %}" class="btn btn-sm btn-outline-primary">Nuevo préstamo</a>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead><tr><th>Fecha</th><th>Motivo</th><th class="text-end">Monto</th><th class="text-end">Saldo</th><th>Estado</th></tr></thead>
+            <tbody>
+            {% for prestamo in prestamos %}
+                <tr onclick="window.location='{% url 'rrhh:prestamo_detalle' prestamo.pk %}'" style="cursor:pointer;">
+                    <td>{{ prestamo.fecha_otorgado|date:"d/m/Y" }}</td>
+                    <td>{{ prestamo.motivo|default:"—" }}</td>
+                    <td class="text-end">{{ prestamo.monto|cop }}</td>
+                    <td class="text-end">{{ prestamo.saldo_pendiente|cop }}</td>
+                    <td>
+                        {% if prestamo.estado == "activo" %}
+                            <span class="badge bg-warning text-dark">Activo</span>
+                        {% else %}
+                            <span class="badge bg-success">Pagado</span>
+                        {% endif %}
+                    </td>
+                </tr>
+            {% empty %}
+                <tr><td colspan="5" class="text-center text-muted py-3">Sin préstamos registrados</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

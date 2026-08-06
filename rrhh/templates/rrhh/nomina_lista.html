@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% load money %}
+{% block title %}Nómina{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2 class="mb-0">Nómina</h2>
+    <a href="{% url 'rrhh:nomina_crear' %}" class="btn btn-primary"><i class="bi bi-plus-lg me-1"></i>Nueva nómina</a>
+</div>
+
+<div class="card card-kpi">
+    <div class="table-responsive">
+        <table class="table table-hover mb-0 align-middle">
+            <thead><tr><th>Período</th><th>Estado</th><th class="text-end"># Empleados</th><th class="text-end">Total a pagar</th></tr></thead>
+            <tbody>
+            {% for nomina in nominas %}
+                <tr onclick="window.location='{% url 'rrhh:nomina_detalle' nomina.pk %}'" style="cursor:pointer">
+                    <td>{{ nomina.periodo }}</td>
+                    <td>
+                        {% if nomina.estado == "procesada" %}
+                            <span class="badge bg-success">Procesada</span>
+                        {% else %}
+                            <span class="badge bg-warning text-dark">Borrador</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-end">{{ nomina.detalles.count }}</td>
+                    <td class="text-end">{{ nomina.total_pagar|cop }}</td>
+                </tr>
+            {% empty %}
+                <tr><td colspan="4" class="text-center text-muted py-4">No hay nóminas registradas</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

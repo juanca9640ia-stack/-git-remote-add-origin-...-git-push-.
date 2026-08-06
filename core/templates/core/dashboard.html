@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% load money %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+<h2 class="mb-1">Página de inicio</h2>
+<p class="text-muted mb-4">Accesos directos a cada módulo con sus indicadores clave.</p>
+
+{% if cxc_vencidas_count %}
+<div class="alert alert-danger d-flex justify-content-between align-items-center mb-4">
+    <div><i class="bi bi-exclamation-triangle-fill me-2"></i><strong>{{ cxc_vencidas_count }}</strong> factura(s) por cobrar vencida(s) por <strong>{{ cxc_vencidas_total|cop }}</strong>.</div>
+    <a href="{% url 'finanzas:cxc_lista' %}?vencidas=1" class="btn btn-sm btn-outline-danger">Ver vencidas</a>
+</div>
+{% endif %}
+
+<div class="sap-tile-grid mb-4">
+    {% for tile in tiles %}
+        <a href="{{ tile.url }}" class="sap-tile sap-tile-{{ tile.color }}">
+            <div class="sap-tile-icon"><i class="bi {{ tile.icon }}"></i></div>
+            <div class="sap-tile-title">{{ tile.title }}</div>
+            <div class="sap-tile-value">{{ tile.value }}</div>
+            <div class="sap-tile-label">{{ tile.label }}</div>
+        </a>
+    {% endfor %}
+</div>
+
+<h6 class="text-muted text-uppercase mb-3">Resumen de hoy</h6>
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="card card-kpi p-3 h-100">
+            <small class="text-muted text-uppercase">Ventas hoy</small>
+            <div class="fs-4 fw-bold">{{ total_ventas_hoy|cop }}</div>
+            <small class="text-muted">{{ ventas_hoy_count }} venta(s)</small>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card card-kpi p-3 h-100">
+            <small class="text-muted text-uppercase">Ventas del mes</small>
+            <div class="fs-4 fw-bold">{{ total_ventas_mes|cop }}</div>
+            <small class="text-muted">Acumulado del mes</small>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card card-kpi p-3 h-100">
+            <small class="text-muted text-uppercase">Valor del inventario</small>
+            <div class="fs-4 fw-bold">{{ valor_inventario|cop }}</div>
+            <small class="text-muted">{{ total_productos }} productos activos</small>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card card-kpi p-3 h-100 {% if productos_stock_bajo %}border-danger{% endif %}">
+            <small class="text-muted text-uppercase">Alertas de stock bajo</small>
+            <div class="fs-4 fw-bold {% if productos_stock_bajo %}text-danger{% endif %}">{{ productos_stock_bajo|length }}</div>
+            <small class="text-muted">Productos bajo el mínimo</small>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card card-kpi p-3 h-100 {% if cxc_vencidas_count %}border-danger{% endif %}">
+            <small class="text-muted text-uppercase">Cuentas por cobrar</small>
+            <div class="fs-4 fw-bold">{{ total_por_cobrar|cop }}</div>
+            <small class="{% if cxc_vencidas_count %}text-danger{% else %}text-muted{% endif %}">{{ cxc_pendientes_count }} cuenta(s){% if cxc_vencidas_count %} · {{ cxc_vencidas_count }} vencida(s){% endif %}</small>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card card-kpi p-3 h-100">
+            <small class="text-muted text-uppercase">Cuentas por pagar</small>
+            <div class="fs-4 fw-bold">{{ total_por_pagar|cop }}</div>
+            <small class="text-muted">{{ cxp_pendientes_count }} cuenta(s)</small>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3">
+    <div class="col-md-7">
+        <div class="card card-kpi">
+            <div class="card-header bg-white fw-bold">Últimas ventas confirmadas</div>
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead><tr><th>#</th><th>Cliente</th><th>Fecha</th><th class="text-end">Total</th></tr></thead>
+                    <tbody>
+                    {% for venta in ultimas_ventas %}
+                        <tr onclick="window.location='{% url 'ventas:venta_detalle' venta.pk %}'" style="cursor:pointer">
+                            <td>{{ venta.numero }}</td>
+                            <td>{{ venta.cliente }}</td>
+                            <td>{{ venta.confirmada_en|date:"d/m/Y H:i" }}</td>
+                            <td class="text-end">{{ venta.total|cop }}</td>
+                        </tr>
+                    {% empty %}
+                        <tr><td colspan="4" class="text-center text-muted py-3">Sin ventas confirmadas aún</td></tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-5">
+        <div class="card card-kpi">
+            <div class="card-header bg-white fw-bold text-danger">Productos con stock bajo</div>
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead><tr><th>SKU</th><th>Producto</th><th class="text-end">Stock</th></tr></thead>
+                    <tbody>
+                    {% for producto in productos_stock_bajo %}
+                        <tr onclick="window.location='{% url 'inventario:producto_detalle' producto.pk %}'" style="cursor:pointer">
+                            <td>{{ producto.sku }}</td>
+                            <td>{{ producto.nombre }}</td>
+                            <td class="text-end">{{ producto.stock_actual }} / min {{ producto.stock_minimo }}</td>
+                        </tr>
+                    {% empty %}
+                        <tr><td colspan="3" class="text-center text-muted py-3">Todo el inventario está en niveles saludables</td></tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

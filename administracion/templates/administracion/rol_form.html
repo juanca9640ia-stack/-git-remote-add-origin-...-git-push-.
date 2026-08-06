@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}{% if grupo %}Editar rol{% else %}Nuevo rol{% endif %}{% endblock %}
+{% block content %}
+<h2 class="mb-4">{% if grupo %}Editar rol{% else %}Nuevo rol{% endif %}</h2>
+<div class="card card-kpi p-4" style="max-width:480px;">
+    <form method="post">
+        {% csrf_token %}
+        <div class="mb-3">
+            <label class="form-label">Nombre del rol</label>
+            {{ form.nombre }}
+            {% if form.nombre.errors %}<div class="text-danger small">{{ form.nombre.errors|join:" " }}</div>{% endif %}
+        </div>
+        <label class="form-label">Acceso a módulos</label>
+        {% for field in form %}
+            {% if field.name != "nombre" %}
+                <div class="form-check mb-1">
+                    {{ field }}
+                    <label class="form-check-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                </div>
+            {% endif %}
+        {% endfor %}
+        <div class="mt-4">
+            <button type="submit" class="btn btn-primary">Guardar</button>
+            <a href="{% url 'administracion:rol_lista' %}" class="btn btn-outline-secondary">Cancelar</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

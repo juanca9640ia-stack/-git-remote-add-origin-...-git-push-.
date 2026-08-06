@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}Asistencia{% endblock %}
+{% block content %}
+<h2 class="mb-4">Control de asistencia</h2>
+
+<form class="row g-2 mb-3" method="get">
+    <div class="col-auto">
+        <input type="date" name="fecha" value="{{ fecha }}" class="form-control" onchange="this.form.submit()">
+    </div>
+</form>
+
+<div class="card card-kpi">
+    <div class="table-responsive">
+        <table class="table table-hover mb-0 align-middle">
+            <thead><tr><th>Empleado</th><th>Departamento</th><th>Estado</th><th>Entrada</th><th>Salida</th><th class="text-end">Acciones</th></tr></thead>
+            <tbody>
+            {% for fila in filas %}
+                <tr>
+                    <td>{{ fila.empleado.nombre_completo }}</td>
+                    <td>{{ fila.empleado.departamento|default:"—" }}</td>
+                    <td>
+                        {% if fila.asistencia %}
+                            {% if fila.asistencia.estado == "presente" %}
+                                <span class="badge bg-success">Presente</span>
+                            {% elif fila.asistencia.estado == "tardanza" %}
+                                <span class="badge bg-warning text-dark">Tardanza</span>
+                            {% elif fila.asistencia.estado == "ausente" %}
+                                <span class="badge bg-danger">Ausente</span>
+                            {% elif fila.asistencia.estado == "permiso" %}
+                                <span class="badge bg-info text-dark">Permiso</span>
+                            {% else %}
+                                <span class="badge bg-secondary">Vacaciones</span>
+                            {% endif %}
+                        {% else %}
+                            <span class="badge bg-light text-muted border">Sin registrar</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ fila.asistencia.hora_entrada|default:"—" }}</td>
+                    <td>{{ fila.asistencia.hora_salida|default:"—" }}</td>
+                    <td class="text-end">
+                        <div class="d-flex gap-1 justify-content-end">
+                            {% if not fila.asistencia %}
+                                <form method="post" action="{% url 'rrhh:asistencia_marcar_entrada' fila.empleado.pk %}">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-sm btn-outline-success">Marcar entrada</button>
+                                </form>
+                            {% elif not fila.asistencia.hora_salida and fila.asistencia.hora_entrada %}
+                                <form method="post" action="{% url 'rrhh:asistencia_marcar_salida' fila.empleado.pk %}">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-sm btn-outline-secondary">Marcar salida</button>
+                                </form>
+                            {% endif %}
+                            <a href="{% url 'rrhh:asistencia_registrar' fila.empleado.pk %}?fecha={{ fecha }}" class="btn btn-sm btn-outline-primary">Editar</a>
+                        </div>
+                    </td>
+                </tr>
+            {% empty %}
+                <tr><td colspan="6" class="text-center text-muted py-4">No hay empleados activos</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

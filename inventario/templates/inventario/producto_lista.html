@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% load money %}
+{% block title %}Productos{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2 class="mb-0">Productos</h2>
+    <a href="{% url 'inventario:producto_crear' %}" class="btn btn-primary"><i class="bi bi-plus-lg me-1"></i>Nuevo producto</a>
+</div>
+
+<form class="row g-2 mb-3" method="get">
+    <div class="col-auto">
+        <input type="text" name="q" value="{{ query }}" class="form-control" placeholder="Buscar por SKU o nombre">
+    </div>
+    <div class="col-auto form-check pt-2">
+        <input type="checkbox" name="stock_bajo" value="1" class="form-check-input" id="stockBajo" {% if solo_stock_bajo %}checked{% endif %} onchange="this.form.submit()">
+        <label class="form-check-label" for="stockBajo">Solo stock bajo</label>
+    </div>
+    <div class="col-auto">
+        <button class="btn btn-outline-secondary" type="submit">Buscar</button>
+    </div>
+</form>
+
+<div class="card card-kpi">
+    <div class="table-responsive">
+        <table class="table table-hover mb-0 align-middle">
+            <thead>
+                <tr><th>SKU</th><th>Nombre</th><th>Tipo</th><th>Categoría</th><th class="text-end">Precio venta</th><th class="text-end">Stock</th><th></th></tr>
+            </thead>
+            <tbody>
+            {% for producto in productos %}
+                <tr class="{% if producto.stock_bajo %}table-danger{% endif %}">
+                    <td>{{ producto.sku }}</td>
+                    <td>{{ producto.nombre }}</td>
+                    <td>{{ producto.get_tipo_display }}</td>
+                    <td>{{ producto.categoria|default:"—" }}</td>
+                    <td class="text-end">{{ producto.precio_venta|cop }}</td>
+                    <td class="text-end">{% if producto.es_servicio %}—{% else %}{{ producto.stock_actual }}{% endif %}</td>
+                    <td class="text-end">
+                        <a href="{% url 'inventario:producto_detalle' producto.pk %}" class="btn btn-sm btn-outline-secondary">Ver</a>
+                    </td>
+                </tr>
+            {% empty %}
+                <tr><td colspan="7" class="text-center text-muted py-4">No hay productos registrados</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block title %}{% if usuario %}Editar usuario{% else %}Nuevo usuario{% endif %}{% endblock %}
+{% block content %}
+<h2 class="mb-4">{% if usuario %}Editar usuario — {{ usuario.username }}{% else %}Nuevo usuario{% endif %}</h2>
+
+<div class="card card-kpi p-4" style="max-width:640px;">
+    <form method="post">
+        {% csrf_token %}
+        <div class="row g-3">
+            <div class="col-md-6">
+                <label class="form-label">Usuario</label>
+                {{ form.username }}
+                {% if form.username.errors %}<div class="text-danger small">{{ form.username.errors|join:", " }}</div>{% endif %}
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Email</label>
+                {{ form.email }}
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Nombres</label>
+                {{ form.first_name }}
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Apellidos</label>
+                {{ form.last_name }}
+            </div>
+
+            {% if not usuario %}
+            <div class="col-md-6">
+                <label class="form-label">Contraseña</label>
+                {{ form.password1 }}
+                {% if form.password1.errors %}<div class="text-danger small">{{ form.password1.errors|join:", " }}</div>{% endif %}
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Confirmar contraseña</label>
+                {{ form.password2 }}
+                {% if form.password2.errors %}<div class="text-danger small">{{ form.password2.errors|join:", " }}</div>{% endif %}
+            </div>
+            {% endif %}
+
+            <div class="col-md-6 form-check">
+                {{ form.is_active }}
+                <label class="form-check-label">Activo</label>
+            </div>
+            <div class="col-md-6 form-check">
+                {{ form.is_staff }}
+                <label class="form-check-label">Acceso a Administración</label>
+            </div>
+
+            <div class="col-12">
+                <label class="form-label">Grupos de permisos</label>
+                <div class="row">
+                    {% for checkbox in form.groups %}
+                        <div class="col-md-4 form-check mb-1">
+                            {{ checkbox.tag }}
+                            <label class="form-check-label" for="{{ checkbox.id_for_label }}">{{ checkbox.choice_label }}</label>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <div class="mt-4">
+            <button type="submit" class="btn btn-primary">Guardar</button>
+            <a href="{% url 'administracion:usuario_lista' %}" class="btn btn-outline-secondary">Cancelar</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% load money %}
+{% block title %}Compras{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2 class="mb-0">Compras</h2>
+    <a href="{% url 'compras:compra_crear' %}" class="btn btn-primary"><i class="bi bi-plus-lg me-1"></i>Nueva compra</a>
+</div>
+
+<form class="row g-2 mb-3" method="get">
+    <div class="col-auto">
+        <select name="estado" class="form-select" onchange="this.form.submit()">
+            <option value="">Todos los estados</option>
+            <option value="borrador" {% if estado == "borrador" %}selected{% endif %}>Borrador</option>
+            <option value="confirmada" {% if estado == "confirmada" %}selected{% endif %}>Confirmada</option>
+            <option value="anulada" {% if estado == "anulada" %}selected{% endif %}>Anulada</option>
+        </select>
+    </div>
+</form>
+
+<div class="card card-kpi">
+    <div class="table-responsive">
+        <table class="table table-hover mb-0 align-middle">
+            <thead><tr><th>#</th><th>Proveedor</th><th>Estado</th><th>Responsable</th><th>Fecha</th><th class="text-end">Total</th></tr></thead>
+            <tbody>
+            {% for compra in compras %}
+                <tr onclick="window.location='{% url 'compras:compra_detalle' compra.pk %}'" style="cursor:pointer">
+                    <td>{{ compra.numero }}</td>
+                    <td>{{ compra.proveedor }}</td>
+                    <td>
+                        {% if compra.estado == "confirmada" %}
+                            <span class="badge bg-success">Confirmada</span>
+                        {% elif compra.estado == "anulada" %}
+                            <span class="badge bg-secondary">Anulada</span>
+                        {% else %}
+                            <span class="badge bg-warning text-dark">Borrador</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ compra.responsable|default:"—" }}</td>
+                    <td>{{ compra.creado_en|date:"d/m/Y H:i" }}</td>
+                    <td class="text-end">{{ compra.total|cop }}</td>
+                </tr>
+            {% empty %}
+                <tr><td colspan="6" class="text-center text-muted py-4">No hay compras registradas</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

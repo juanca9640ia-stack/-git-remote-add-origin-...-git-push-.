@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% load money %}
+{% block title %}Cotización {{ cotizacion.numero }}{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-start mb-4">
+    <div>
+        <h2 class="mb-0">Cotización {{ cotizacion.numero }}</h2>
+        <span class="text-muted">Cliente: {{ cotizacion.cliente }} · Vendedor: {{ cotizacion.vendedor|default:"—" }} · Válida hasta {{ cotizacion.fecha_validez|date:"d/m/Y" }}{% if cotizacion.sede %} · Sede: {{ cotizacion.sede }}{% endif %}</span>
+    </div>
+    <div class="text-end">
+        {% if cotizacion.estado == "aceptada" %}
+            <span class="badge bg-success fs-6">Aceptada</span>
+        {% elif cotizacion.estado == "rechazada" %}
+            <span class="badge bg-danger fs-6">Rechazada</span>
+        {% elif cotizacion.estado == "enviada" %}
+            <span class="badge bg-info fs-6">Enviada</span>
+        {% else %}
+            <span class="badge bg-warning text-dark fs-6">Borrador</span>
+        {% endif %}
+        {% if cotizacion.vencida %}<div class="mt-1"><span class="badge bg-secondary">Vencida</span></div>{% endif %}
+    </div>
+</div>
+
+<div class="card card-kpi">
+    <div class="table-responsive">
+        <table class="table mb-0">
+            <thead><tr><th>Producto</th><th class="text-end">Cantidad</th><th class="text-end">Precio unitario</th><th class="text-end">Subtotal</th></tr></thead>
+            <tbody>
+            {% for linea in cotizacion.lineas.all %}
+                <tr>
+                    <td>
+                        {{ linea.producto }}
+                        {% if linea.producto.descripcion %}<div class="small text-muted">{{ linea.producto.descripcion }}</div>{% endif %}
+                    </td>
+                    <td class="text-end">{{ linea.cantidad }}</td>
+                    <td class="text-end">{{ linea.precio_unitario|cop }}</td>
+                    <td class="text-end">{{ linea.subtotal|cop }}</td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <div class="card-body text-end">
+        <div>Subtotal: <strong>{{ cotizacion.subtotal|cop }}</strong></div>
+        <div>IVA ({{ cotizacion.impuesto_porcentaje }}%): <strong>{{ cotizacion.impuesto_valor|cop }}</strong></div>
+        <div class="fs-5">Total: <strong>{{ cotizacion.total|cop }}</strong></div>
+    </div>
+</div>
+
+{% if cotizacion.notas %}
+<div class="alert alert-light border mt-3"><strong>Condiciones comerciales:</strong> {{ cotizacion.notas|linebreaksbr }}</div>
+{% endif %}
+
+{% if cotizacion.firmado_por %}
+<div class="alert alert-success mt-3">
+    <i class="bi bi-pen me-1"></i>Firmado por <strong>{{ cotizacion.firmado_por }}</strong> el {{ cotizacion.firmado_en|date:"d/m/Y H:i" }}.
+</div>
+{% endif %}
+
+{% if cotizacion.venta %}
+<div class="alert alert-success mt-3">
+    Esta cotización ya fue convertida en la venta
+    <a href="{% url 'ventas:venta_detalle' cotizacion.venta.pk %}">{{ cotizacion.venta.numero }}</a>.
+</div>
+{% endif %}
+
+{% if cotizacion.estado == "enviada" %}
+<div class="card card-kpi p-3 mt-3" style="max-width:480px;">
+    <h6 class="mb-2">Firmar y aceptar cotización</h6>
+    <form method="post" action="{% url 'ventas:cotizacion_marcar_aceptada' cotizacion.pk %}" class="d-flex gap-2">
+        {% csrf_token %}
+        <input type="text" name="firmado_por" class="form-control" placeholder="Nombre completo de quien firma" required>
+        <button type="submit" class="btn btn-success text-nowrap"><i class="bi bi-pen me-1"></i>Firmar</button>
+    </form>
+</div>
+{% endif %}
+
+<div class="mt-4 d-flex gap-2 flex-wrap">
+    <a href="{% url 'ventas:cotizacion_imprimir' cotizacion.pk %}" target="_blank" class="btn btn-outline-secondary">
+        <i class="bi bi-printer me-1"></i>Imprimir / PDF
+    </a>
+    {% if cotizacion.editable %}
+        <a href="{% url 'ventas:cotizacion_editar' cotizacion.pk %}" class="btn btn-outline-secondary">Editar</a>
+        <form method="post" action="{% url 'ventas:cotizacion_marcar_enviada' cotizacion.pk %}">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-success">Marcar como enviada</button>
+        </form>
+    {% elif cotizacion.estado == "enviada" %}
+        <form method="post" action="{% url 'ventas:cotizacion_marcar_rechazada' cotizacion.pk %}">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-outline-danger">Marcar como rechazada</button>
+        </form>
+    {% endif %}
+    {% if not cotizacion.venta and cotizacion.estado != "rechazada" %}
+        <form method="post" action="{% url 'ventas:cotizacion_convertir_venta' cotizacion.pk %}" onsubmit="return confirm('¿Convertir esta cotización en una venta en borrador?');">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-primary"><i class="bi bi-arrow-right-circle me-1"></i>Convertir en venta</button>
+        </form>
+    {% endif %}
+    <a href="{% url 'ventas:cotizacion_lista' %}" class="btn btn-outline-secondary">Volver</a>
+</div>
+{% endblock %}

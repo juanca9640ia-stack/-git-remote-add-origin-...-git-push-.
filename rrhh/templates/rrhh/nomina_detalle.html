@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% load money %}
+{% block title %}Nómina {{ nomina.periodo }}{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-start mb-4">
+    <div>
+        <h2 class="mb-0">Nómina {{ nomina.periodo }}</h2>
+        <small class="text-muted">Días trabajados se cuentan automático según asistencia con entrada marcada, dentro del rango del período (mensual o semanal).</small>
+    </div>
+    <div>
+        {% if nomina.estado == "procesada" %}
+            <span class="badge bg-success fs-6">Procesada</span>
+        {% else %}
+            <span class="badge bg-warning text-dark fs-6">Borrador</span>
+        {% endif %}
+    </div>
+</div>
+
+<form method="post">
+    {% csrf_token %}
+    {{ formset.management_form }}
+    <div class="card card-kpi">
+        <div class="table-responsive">
+            <table class="table mb-0 align-middle">
+                <thead><tr><th>Empleado</th><th class="text-end">Días trabajados</th><th class="text-end">Pago base</th><th class="text-end">Horas extra</th><th class="text-end">Bonificaciones</th><th class="text-end">Deducciones</th><th class="text-end">Abono préstamo</th><th class="text-end">Total</th>{% if not nomina.editable %}<th></th>{% endif %}</tr></thead>
+                <tbody>
+                {% for f in formset %}
+                    <tr>
+                        {{ f.id }}
+                        <td>
+                            {{ f.instance.empleado }}
+                            <br><small class="text-muted">{{ f.instance.empleado.get_tipo_pago_display }}</small>
+                        </td>
+                        <td class="text-end">
+                            {% if f.instance.empleado.tipo_pago == "dia" %}
+                                {{ f.instance.dias_trabajados }}
+                            {% else %}
+                                <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end">{{ f.instance.pago_base|cop }}</td>
+                        <td class="text-end" style="max-width:140px;">
+                            {% if nomina.editable %}{{ f.horas_extra }}{% else %}{{ f.instance.horas_extra|cop }}{% endif %}
+                        </td>
+                        <td class="text-end" style="max-width:140px;">
+                            {% if nomina.editable %}{{ f.bonificaciones }}{% else %}{{ f.instance.bonificaciones|cop }}{% endif %}
+                        </td>
+                        <td class="text-end" style="max-width:140px;">
+                            {% if nomina.editable %}{{ f.deducciones }}{% else %}{{ f.instance.deducciones|cop }}{% endif %}
+                        </td>
+                        <td class="text-end" style="max-width:140px;">
+                            {% if nomina.editable %}{{ f.descuento_prestamo }}{% else %}{{ f.instance.descuento_prestamo|cop }}{% endif %}
+                        </td>
+                        <td class="text-end">{{ f.instance.total|cop }}</td>
+                        {% if not nomina.editable %}
+                        <td class="text-end">
+                            <a href="{% url 'rrhh:detalle_nomina_recibo' f.instance.pk %}" target="_blank" class="btn btn-sm btn-outline-primary">
+                                <i class="bi bi-receipt"></i> Recibo
+                            </a>
+                        </td>
+                        {% endif %}
+                    </tr>
+                    {% if f.descuento_prestamo.errors %}
+                        <tr><td colspan="9" class="text-danger small pb-2">{{ f.descuento_prestamo.errors|join:" " }}</td></tr>
+                    {% endif %}
+                {% empty %}
+                    <tr><td colspan="9" class="text-center text-muted py-4">Sin empleados en esta nómina</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div class="card-body text-end">
+            <div class="fs-5">Total a pagar: <strong>{{ nomina.total_pagar|cop }}</strong></div>
+            {% if nomina.cuenta_por_pagar %}
+                <div class="small">
+                    <a href="{% url 'finanzas:cxp_detalle' nomina.cuenta_por_pagar.pk %}">Ver cuenta por pagar en Finanzas</a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="mt-3 d-flex gap-2">
+        {% if nomina.editable %}
+            <button type="submit" class="btn btn-outline-primary">Guardar cambios</button>
+        {% endif %}
+    </div>
+</form>
+
+<div class="mt-3 d-flex gap-2">
+    {% if nomina.editable %}
+        <form method="post" action="{% url 'rrhh:nomina_procesar' nomina.pk %}" onsubmit="return confirm('¿Procesar esta nómina? Ya no podrás editar los montos.');">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-success">Procesar nómina</button>
+        </form>
+    {% endif %}
+    <a href="{% url 'rrhh:nomina_lista' %}" class="btn btn-outline-secondary">Volver</a>
+</div>
+{% endblock %}

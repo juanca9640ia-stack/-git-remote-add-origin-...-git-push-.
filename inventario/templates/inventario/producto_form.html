@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}{% if producto %}Editar producto{% else %}Nuevo producto{% endif %}{% endblock %}
+{% block content %}
+<h2 class="mb-4">{% if producto %}Editar producto{% else %}Nuevo producto{% endif %}</h2>
+<div class="card card-kpi p-4" style="max-width:640px;">
+    <form method="post">
+        {% csrf_token %}
+        <div class="row g-3">
+            <div class="col-md-6">
+                <label class="form-label">SKU</label>
+                {{ form.sku }}
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Categoría</label>
+                {{ form.categoria }}
+            </div>
+            <div class="col-12">
+                <label class="form-label">Nombre</label>
+                {{ form.nombre }}
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Tipo</label>
+                {{ form.tipo }}
+            </div>
+            <div class="col-12">
+                <label class="form-label">Descripción</label>
+                {{ form.descripcion }}
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Precio costo</label>
+                {{ form.precio_costo }}
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Precio venta</label>
+                {{ form.precio_venta }}
+            </div>
+            <div id="campos-stock" class="col-md-4 d-flex gap-2">
+                <div>
+                    <label class="form-label">Stock mínimo</label>
+                    {{ form.stock_minimo }}
+                </div>
+                <div>
+                    <label class="form-label">Stock actual</label>
+                    {{ form.stock_actual }}
+                    {% if form.stock_actual.help_text %}<small class="text-muted d-block">{{ form.stock_actual.help_text }}</small>{% endif %}
+                </div>
+            </div>
+            <div class="col-md-4 d-flex align-items-center">
+                <div class="form-check mt-4">
+                    {{ form.activo }}
+                    <label class="form-check-label">Activo</label>
+                </div>
+            </div>
+        </div>
+        {% for field in form %}{% if field.errors %}<div class="text-danger small">{{ field.label }}: {{ field.errors|join:", " }}</div>{% endif %}{% endfor %}
+        <div class="mt-4">
+            <button type="submit" class="btn btn-primary">Guardar</button>
+            <a href="{% url 'inventario:producto_lista' %}" class="btn btn-outline-secondary">Cancelar</a>
+        </div>
+    </form>
+</div>
+<script>
+(function () {
+    var tipoSelect = document.getElementById('{{ form.tipo.id_for_label }}');
+    var camposStock = document.getElementById('campos-stock');
+
+    function actualizar() {
+        camposStock.style.display = tipoSelect.value === 'servicio' ? 'none' : '';
+    }
+
+    tipoSelect.addEventListener('change', actualizar);
+    actualizar();
+})();
+</script>
+{% endblock %}

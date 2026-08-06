@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}Movimientos de inventario{% endblock %}
+{% block content %}
+<h2 class="mb-4">Movimientos de inventario</h2>
+<div class="card card-kpi">
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead><tr><th>Fecha</th><th>Producto</th><th>Tipo</th><th>Motivo</th><th class="text-end">Cantidad</th><th class="text-end">Stock resultante</th><th>Referencia</th><th>Usuario</th></tr></thead>
+            <tbody>
+            {% for mov in movimientos %}
+                <tr>
+                    <td>{{ mov.creado_en|date:"d/m/Y H:i" }}</td>
+                    <td><a href="{% url 'inventario:producto_detalle' mov.producto.pk %}">{{ mov.producto.sku }}</a></td>
+                    <td>
+                        {% if mov.tipo == 'entrada' %}
+                            <span class="badge bg-success">Entrada</span>
+                        {% else %}
+                            <span class="badge bg-danger">Salida</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ mov.get_motivo_display }}</td>
+                    <td class="text-end">{{ mov.cantidad }}</td>
+                    <td class="text-end">{{ mov.stock_resultante }}</td>
+                    <td>{{ mov.referencia }}</td>
+                    <td>{{ mov.usuario|default:"—" }}</td>
+                </tr>
+            {% empty %}
+                <tr><td colspan="8" class="text-center text-muted py-4">Sin movimientos registrados</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

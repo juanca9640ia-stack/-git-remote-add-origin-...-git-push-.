@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% load money %}
+{% block title %}Cuenta por pagar {{ cuenta.origen }}{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-start mb-4">
+    <div>
+        <h2 class="mb-0">Cuenta por pagar — {{ cuenta.origen }}</h2>
+        <span class="text-muted">{{ cuenta.contraparte }}</span>
+    </div>
+    <div>
+        {% if cuenta.estado == "pagada" %}
+            <span class="badge bg-success fs-6">Pagada</span>
+        {% elif cuenta.estado == "parcial" %}
+            <span class="badge bg-info text-dark fs-6">Pago parcial</span>
+        {% elif cuenta.estado == "anulada" %}
+            <span class="badge bg-secondary fs-6">Anulada</span>
+        {% else %}
+            <span class="badge bg-warning text-dark fs-6">Pendiente</span>
+        {% endif %}
+    </div>
+</div>
+
+<div class="row g-3 mb-3">
+    <div class="col-md-4">
+        <div class="card card-kpi p-3">
+            <small class="text-muted text-uppercase">Monto total</small>
+            <div class="fs-4 fw-bold">{{ cuenta.monto_total|cop }}</div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card card-kpi p-3">
+            <small class="text-muted text-uppercase">Saldo pendiente</small>
+            <div class="fs-4 fw-bold {% if cuenta.saldo_pendiente > 0 %}text-danger{% endif %}">{{ cuenta.saldo_pendiente|cop }}</div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card card-kpi p-3">
+            <small class="text-muted text-uppercase">Origen</small>
+            <div class="fs-6">
+                {% if cuenta.compra_id %}
+                    <a href="{% url 'compras:compra_detalle' cuenta.compra.pk %}">{{ cuenta.origen }}</a>
+                {% else %}
+                    <a href="{% url 'rrhh:nomina_detalle' cuenta.nomina.pk %}">{{ cuenta.origen }}</a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3">
+    {% if cuenta.estado != "anulada" and cuenta.saldo_pendiente > 0 %}
+    <div class="col-md-4">
+        <div class="card card-kpi p-3">
+            <h6>Registrar pago</h6>
+            <form method="post">
+                {% csrf_token %}
+                <div class="mb-2">
+                    <label class="form-label small">Monto (máx. {{ cuenta.saldo_pendiente|cop }})</label>
+                    {{ form.monto }}
+                </div>
+                <div class="mb-2">
+                    <label class="form-label small">Método</label>
+                    {{ form.metodo }}
+                </div>
+                <div class="mb-2">
+                    <label class="form-label small">Referencia (opcional)</label>
+                    {{ form.referencia }}
+                </div>
+                <button type="submit" class="btn btn-primary w-100">Registrar pago</button>
+            </form>
+        </div>
+    </div>
+    {% endif %}
+    <div class="{% if cuenta.estado != 'anulada' and cuenta.saldo_pendiente > 0 %}col-md-8{% else %}col-md-12{% endif %}">
+        <div class="card card-kpi">
+            <div class="card-header bg-white fw-bold">Pagos realizados</div>
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead><tr><th>Fecha</th><th>Monto</th><th>Método</th><th>Referencia</th><th>Registrado por</th></tr></thead>
+                    <tbody>
+                    {% for pago in pagos %}
+                        <tr>
+                            <td>{{ pago.creado_en|date:"d/m/Y H:i" }}</td>
+                            <td>{{ pago.monto|cop }}</td>
+                            <td>{{ pago.get_metodo_display }}</td>
+                            <td>{{ pago.referencia|default:"—" }}</td>
+                            <td>{{ pago.registrado_por|default:"—" }}</td>
+                        </tr>
+                    {% empty %}
+                        <tr><td colspan="5" class="text-center text-muted py-3">Sin pagos registrados aún</td></tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="mt-4">
+    <a href="{% url 'finanzas:cxp_lista' %}" class="btn btn-outline-secondary">Volver</a>
+</div>
+{% endblock %}

@@ -1,0 +1,87 @@
+<div class="modal fade" id="modalClienteRapido" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Nuevo cliente</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="cliente-rapido-error" class="alert alert-danger d-none"></div>
+                <div class="mb-2">
+                    <label class="form-label small">Nombre *</label>
+                    <input type="text" class="form-control" id="cr-nombre">
+                </div>
+                <div class="mb-2">
+                    <label class="form-label small">Documento</label>
+                    <input type="text" class="form-control" id="cr-documento">
+                </div>
+                <div class="mb-2">
+                    <label class="form-label small">Teléfono</label>
+                    <input type="text" class="form-control" id="cr-telefono">
+                </div>
+                <div class="mb-2">
+                    <label class="form-label small">Email</label>
+                    <input type="email" class="form-control" id="cr-email">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" id="cr-guardar">Guardar cliente</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    var modalEl = document.getElementById('modalClienteRapido');
+    var modal = new bootstrap.Modal(modalEl);
+    var clienteSelect = document.getElementById('id_cliente');
+    var errorBox = document.getElementById('cliente-rapido-error');
+
+    document.getElementById('abrir-modal-cliente')?.addEventListener('click', function () {
+        errorBox.classList.add('d-none');
+        errorBox.textContent = '';
+        ['cr-nombre', 'cr-documento', 'cr-telefono', 'cr-email'].forEach(function (id) {
+            document.getElementById(id).value = '';
+        });
+        modal.show();
+    });
+
+    document.getElementById('cr-guardar').addEventListener('click', function () {
+        var csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+        var data = new URLSearchParams({
+            nombre: document.getElementById('cr-nombre').value,
+            documento: document.getElementById('cr-documento').value,
+            telefono: document.getElementById('cr-telefono').value,
+            email: document.getElementById('cr-email').value,
+        });
+        fetch("{% url 'ventas:cliente_crear_rapido' %}", {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrfToken,
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: data,
+        })
+            .then(function (resp) { return resp.json().then(function (json) { return { status: resp.status, json: json }; }); })
+            .then(function (result) {
+                if (result.json.ok) {
+                    var option = document.createElement('option');
+                    option.value = result.json.id;
+                    option.textContent = result.json.nombre;
+                    option.selected = true;
+                    clienteSelect.appendChild(option);
+                    modal.hide();
+                } else {
+                    var mensajes = [];
+                    Object.keys(result.json.errors).forEach(function (campo) {
+                        result.json.errors[campo].forEach(function (err) { mensajes.push(err.message || err); });
+                    });
+                    errorBox.textContent = mensajes.join(' ');
+                    errorBox.classList.remove('d-none');
+                }
+            });
+    });
+});
+</script>

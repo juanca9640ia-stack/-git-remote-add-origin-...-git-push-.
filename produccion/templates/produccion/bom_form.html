@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block title %}{% if lista %}Editar receta{% else %}Nueva receta{% endif %}{% endblock %}
+{% block content %}
+<h2 class="mb-4">{% if lista %}Editar receta de {{ lista.producto }}{% else %}Nueva receta{% endif %}</h2>
+
+<form method="post">
+    {% csrf_token %}
+    <div class="card card-kpi p-4 mb-3">
+        <div class="row g-3">
+            <div class="col-md-8">
+                <label class="form-label">Producto terminado</label>
+                {{ form.producto }}
+                {% if form.producto.errors %}<div class="text-danger small">{{ form.producto.errors }}</div>{% endif %}
+            </div>
+            <div class="col-12">
+                <label class="form-label">Notas</label>
+                {{ form.notas }}
+            </div>
+        </div>
+    </div>
+
+    <div class="card card-kpi p-4">
+        <h6>Componentes (insumos necesarios por cada unidad producida)</h6>
+        {{ formset.management_form }}
+        {% if formset.non_form_errors %}
+            <div class="alert alert-danger">{{ formset.non_form_errors }}</div>
+        {% endif %}
+        <table class="table" id="componentes-table">
+            <thead><tr><th style="width:60%">Insumo</th><th>Cantidad por unidad</th><th>Eliminar</th></tr></thead>
+            <tbody>
+            {% for f in formset %}
+                <tr class="componente-form">
+                    {{ f.id }}
+                    <td>{{ f.insumo }}</td>
+                    <td>{{ f.cantidad_por_unidad }}</td>
+                    <td>{% if f.DELETE %}{{ f.DELETE }}{% endif %}</td>
+                </tr>
+                {% if f.errors %}
+                    <tr><td colspan="3" class="text-danger small">{{ f.errors }}</td></tr>
+                {% endif %}
+            {% endfor %}
+            </tbody>
+        </table>
+        <button type="button" id="agregar-componente" class="btn btn-sm btn-outline-primary" style="width:fit-content;">
+            <i class="bi bi-plus-lg me-1"></i>Agregar componente
+        </button>
+    </div>
+
+    <div class="mt-3">
+        <button type="submit" class="btn btn-primary">Guardar</button>
+        <a href="{% url 'produccion:bom_lista' %}" class="btn btn-outline-secondary">Cancelar</a>
+    </div>
+</form>
+
+<div id="empty-form" class="d-none">
+    <table><tbody>
+        <tr class="componente-form">
+            {{ formset.empty_form.id }}
+            <td>{{ formset.empty_form.insumo }}</td>
+            <td>{{ formset.empty_form.cantidad_por_unidad }}</td>
+            <td>{{ formset.empty_form.DELETE }}</td>
+        </tr>
+    </tbody></table>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const totalFormsInput = document.querySelector('#id_componentes-TOTAL_FORMS');
+const tableBody = document.querySelector('#componentes-table tbody');
+const emptyFormTemplate = document.querySelector('#empty-form tr').outerHTML;
+
+document.querySelector('#agregar-componente').addEventListener('click', () => {
+    const formIndex = parseInt(totalFormsInput.value, 10);
+    const newRowHtml = emptyFormTemplate.replaceAll('__prefix__', formIndex);
+    tableBody.insertAdjacentHTML('beforeend', newRowHtml);
+    totalFormsInput.value = formIndex + 1;
+});
+</script>
+{% endblock %}

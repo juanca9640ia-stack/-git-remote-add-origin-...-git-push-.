@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Listas de materiales{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2 class="mb-0">Listas de materiales (recetas)</h2>
+    <a href="{% url 'produccion:bom_crear' %}" class="btn btn-primary"><i class="bi bi-plus-lg me-1"></i>Nueva receta</a>
+</div>
+
+<div class="card card-kpi">
+    <div class="table-responsive">
+        <table class="table table-hover mb-0 align-middle">
+            <thead><tr><th>Producto terminado</th><th># Componentes</th><th></th></tr></thead>
+            <tbody>
+            {% for lista in listas %}
+                <tr>
+                    <td>{{ lista.producto }}</td>
+                    <td>{{ lista.componentes.count }}</td>
+                    <td class="text-end">
+                        <a href="{% url 'produccion:bom_editar' lista.pk %}" class="btn btn-sm btn-outline-secondary">Editar</a>
+                    </td>
+                </tr>
+            {% empty %}
+                <tr><td colspan="3" class="text-center text-muted py-4">No hay listas de materiales definidas</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

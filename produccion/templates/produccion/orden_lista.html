@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}Órdenes de producción{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2 class="mb-0">Órdenes de producción</h2>
+    <a href="{% url 'produccion:orden_crear' %}" class="btn btn-primary"><i class="bi bi-plus-lg me-1"></i>Nueva orden</a>
+</div>
+
+<form class="row g-2 mb-3" method="get">
+    <div class="col-auto">
+        <select name="estado" class="form-select" onchange="this.form.submit()">
+            <option value="">Todos los estados</option>
+            <option value="planificada" {% if estado == "planificada" %}selected{% endif %}>Planificada</option>
+            <option value="completada" {% if estado == "completada" %}selected{% endif %}>Completada</option>
+            <option value="anulada" {% if estado == "anulada" %}selected{% endif %}>Anulada</option>
+        </select>
+    </div>
+</form>
+
+<div class="card card-kpi">
+    <div class="table-responsive">
+        <table class="table table-hover mb-0 align-middle">
+            <thead><tr><th>#</th><th>Producto</th><th class="text-end">Cantidad</th><th>Estado</th><th>Responsable</th><th>Fecha</th></tr></thead>
+            <tbody>
+            {% for orden in ordenes %}
+                <tr onclick="window.location='{% url 'produccion:orden_detalle' orden.pk %}'" style="cursor:pointer">
+                    <td>{{ orden.numero }}</td>
+                    <td>{{ orden.producto }}</td>
+                    <td class="text-end">{{ orden.cantidad }}</td>
+                    <td>
+                        {% if orden.estado == "completada" %}
+                            <span class="badge bg-success">Completada</span>
+                        {% elif orden.estado == "anulada" %}
+                            <span class="badge bg-secondary">Anulada</span>
+                        {% else %}
+                            <span class="badge bg-warning text-dark">Planificada</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ orden.responsable|default:"—" }}</td>
+                    <td>{{ orden.creado_en|date:"d/m/Y H:i" }}</td>
+                </tr>
+            {% empty %}
+                <tr><td colspan="6" class="text-center text-muted py-4">No hay órdenes de producción</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

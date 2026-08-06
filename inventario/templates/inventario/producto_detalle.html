@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% load money %}
+{% block title %}{{ producto.nombre }}{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-start mb-4">
+    <div>
+        <h2 class="mb-0">{{ producto.nombre }}</h2>
+        <span class="text-muted">SKU: {{ producto.sku }} {% if producto.categoria %}· {{ producto.categoria }}{% endif %}</span>
+    </div>
+    <a href="{% url 'inventario:producto_editar' producto.pk %}" class="btn btn-outline-secondary"><i class="bi bi-pencil me-1"></i>Editar</a>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="card card-kpi p-3">
+            <small class="text-muted text-uppercase">Stock actual</small>
+            <div class="fs-4 fw-bold {% if producto.stock_bajo %}text-danger{% endif %}">{{ producto.stock_actual }}</div>
+            <small class="text-muted">mínimo {{ producto.stock_minimo }}</small>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card card-kpi p-3">
+            <small class="text-muted text-uppercase">Precio venta</small>
+            <div class="fs-4 fw-bold">{{ producto.precio_venta|cop }}</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card card-kpi p-3">
+            <small class="text-muted text-uppercase">Precio costo</small>
+            <div class="fs-4 fw-bold">{{ producto.precio_costo|cop }}</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card card-kpi p-3">
+            <small class="text-muted text-uppercase">Valor en inventario</small>
+            <div class="fs-4 fw-bold">{{ producto.valor_inventario|cop }}</div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3">
+    <div class="col-md-4">
+        <div class="card card-kpi p-3">
+            <h6>Ajustar inventario</h6>
+            <form method="post" action="{% url 'inventario:producto_ajustar' producto.pk %}">
+                {% csrf_token %}
+                <div class="mb-2">
+                    <label class="form-label small">Tipo</label>
+                    {{ ajuste_form.tipo }}
+                </div>
+                <div class="mb-2">
+                    <label class="form-label small">Cantidad</label>
+                    {{ ajuste_form.cantidad }}
+                </div>
+                <div class="mb-2">
+                    <label class="form-label small">Referencia (opcional)</label>
+                    {{ ajuste_form.referencia }}
+                </div>
+                <button type="submit" class="btn btn-primary w-100">Aplicar ajuste</button>
+            </form>
+        </div>
+    </div>
+    <div class="col-md-8">
+        <div class="card card-kpi">
+            <div class="card-header bg-white fw-bold">Historial de movimientos</div>
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead><tr><th>Fecha</th><th>Tipo</th><th>Motivo</th><th class="text-end">Cantidad</th><th class="text-end">Stock resultante</th><th>Referencia</th></tr></thead>
+                    <tbody>
+                    {% for mov in movimientos %}
+                        <tr>
+                            <td>{{ mov.creado_en|date:"d/m/Y H:i" }}</td>
+                            <td>
+                                {% if mov.tipo == 'entrada' %}
+                                    <span class="badge bg-success">Entrada</span>
+                                {% else %}
+                                    <span class="badge bg-danger">Salida</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ mov.get_motivo_display }}</td>
+                            <td class="text-end">{{ mov.cantidad }}</td>
+                            <td class="text-end">{{ mov.stock_resultante }}</td>
+                            <td>{{ mov.referencia }}</td>
+                        </tr>
+                    {% empty %}
+                        <tr><td colspan="6" class="text-center text-muted py-3">Sin movimientos registrados</td></tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% load money %}
+{% block title %}Compra {{ compra.numero }}{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-start mb-4">
+    <div>
+        <h2 class="mb-0">Compra {{ compra.numero }}</h2>
+        <span class="text-muted">Proveedor: {{ compra.proveedor }} · Responsable: {{ compra.responsable|default:"—" }}</span>
+    </div>
+    <div>
+        {% if compra.estado == "confirmada" %}
+            <span class="badge bg-success fs-6">Confirmada</span>
+        {% elif compra.estado == "anulada" %}
+            <span class="badge bg-secondary fs-6">Anulada</span>
+        {% else %}
+            <span class="badge bg-warning text-dark fs-6">Borrador</span>
+        {% endif %}
+    </div>
+</div>
+
+<div class="card card-kpi">
+    <div class="table-responsive">
+        <table class="table mb-0">
+            <thead><tr><th>Producto</th><th class="text-end">Cantidad</th><th class="text-end">Precio unitario</th><th class="text-end">Subtotal</th></tr></thead>
+            <tbody>
+            {% for linea in compra.lineas.all %}
+                <tr>
+                    <td>{{ linea.producto }}</td>
+                    <td class="text-end">{{ linea.cantidad }}</td>
+                    <td class="text-end">{{ linea.precio_unitario|cop }}</td>
+                    <td class="text-end">{{ linea.subtotal|cop }}</td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <div class="card-body text-end">
+        <div>Subtotal: <strong>{{ compra.subtotal|cop }}</strong></div>
+        <div>Impuesto ({{ compra.impuesto_porcentaje }}%): <strong>{{ compra.impuesto_valor|cop }}</strong></div>
+        <div class="fs-5">Total: <strong>{{ compra.total|cop }}</strong></div>
+    </div>
+</div>
+
+{% if compra.notas %}
+<div class="alert alert-light border mt-3"><strong>Notas:</strong> {{ compra.notas }}</div>
+{% endif %}
+
+<div class="mt-4 d-flex gap-2">
+    {% if compra.editable %}
+        <a href="{% url 'compras:compra_editar' compra.pk %}" class="btn btn-outline-secondary">Editar</a>
+        <form method="post" action="{% url 'compras:compra_confirmar' compra.pk %}" onsubmit="return confirm('¿Confirmar esta compra? Esto aumentará el stock del inventario.');">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-success">Confirmar compra</button>
+        </form>
+    {% elif compra.estado == "confirmada" %}
+        <form method="post" action="{% url 'compras:compra_anular' compra.pk %}" onsubmit="return confirm('¿Anular esta compra? El stock recibido será retirado del inventario.');">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-outline-danger">Anular compra</button>
+        </form>
+    {% endif %}
+    <a href="{% url 'compras:compra_lista' %}" class="btn btn-outline-secondary">Volver</a>
+</div>
+{% endblock %}

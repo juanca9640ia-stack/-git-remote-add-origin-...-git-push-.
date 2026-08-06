@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Categorías{% endblock %}
+{% block content %}
+<h2 class="mb-4">Categorías</h2>
+<div class="row g-3">
+    <div class="col-md-4">
+        <div class="card card-kpi p-3">
+            <h6>Nueva categoría</h6>
+            <form method="post">
+                {% csrf_token %}
+                <div class="mb-2">
+                    <label class="form-label small">Nombre</label>
+                    {{ form.nombre }}
+                </div>
+                <div class="mb-2">
+                    <label class="form-label small">Descripción</label>
+                    {{ form.descripcion }}
+                </div>
+                <button type="submit" class="btn btn-primary w-100">Crear</button>
+            </form>
+        </div>
+    </div>
+    <div class="col-md-8">
+        <div class="card card-kpi">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead><tr><th>Nombre</th><th>Descripción</th><th class="text-end"># Productos</th></tr></thead>
+                    <tbody>
+                    {% for categoria in categorias %}
+                        <tr>
+                            <td>{{ categoria.nombre }}</td>
+                            <td>{{ categoria.descripcion|default:"—" }}</td>
+                            <td class="text-end">{{ categoria.productos.count }}</td>
+                        </tr>
+                    {% empty %}
+                        <tr><td colspan="3" class="text-center text-muted py-3">Sin categorías</td></tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

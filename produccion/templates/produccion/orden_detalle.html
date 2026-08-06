@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}Orden {{ orden.numero }}{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-start mb-4">
+    <div>
+        <h2 class="mb-0">Orden de producción {{ orden.numero }}</h2>
+        <span class="text-muted">Producto: {{ orden.producto }} · Cantidad a producir: {{ orden.cantidad }} · Responsable: {{ orden.responsable|default:"—" }}</span>
+    </div>
+    <div>
+        {% if orden.estado == "completada" %}
+            <span class="badge bg-success fs-6">Completada</span>
+        {% elif orden.estado == "anulada" %}
+            <span class="badge bg-secondary fs-6">Anulada</span>
+        {% else %}
+            <span class="badge bg-warning text-dark fs-6">Planificada</span>
+        {% endif %}
+    </div>
+</div>
+
+<div class="card card-kpi">
+    <div class="card-header bg-white fw-bold">Insumos requeridos (según receta)</div>
+    <div class="table-responsive">
+        <table class="table mb-0">
+            <thead><tr><th>Insumo</th><th class="text-end">Cantidad requerida</th><th class="text-end">Stock disponible</th><th></th></tr></thead>
+            <tbody>
+            {% for componente in componentes %}
+                <tr class="{% if orden.editable and not componente.stock_suficiente %}table-danger{% endif %}">
+                    <td>{{ componente.insumo }}</td>
+                    <td class="text-end">{{ componente.cantidad_requerida }}</td>
+                    <td class="text-end">{{ componente.insumo.stock_actual }}</td>
+                    <td class="text-end">
+                        {% if orden.editable and not componente.stock_suficiente %}
+                            <span class="text-danger small">Stock insuficiente</span>
+                        {% endif %}
+                    </td>
+                </tr>
+            {% empty %}
+                <tr><td colspan="4" class="text-center text-muted py-3">Sin componentes</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% if orden.notas %}
+<div class="alert alert-light border mt-3"><strong>Notas:</strong> {{ orden.notas }}</div>
+{% endif %}
+
+<div class="mt-4 d-flex gap-2">
+    {% if orden.editable %}
+        <a href="{% url 'produccion:orden_editar' orden.pk %}" class="btn btn-outline-secondary">Editar</a>
+        <form method="post" action="{% url 'produccion:orden_completar' orden.pk %}" onsubmit="return confirm('¿Completar esta orden? Esto consumirá los insumos y dará entrada al producto terminado.');">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-success">Completar producción</button>
+        </form>
+    {% elif orden.estado == "completada" %}
+        <form method="post" action="{% url 'produccion:orden_anular' orden.pk %}" onsubmit="return confirm('¿Anular esta orden? Se retirará el producto terminado y se devolverán los insumos consumidos.');">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-outline-danger">Anular orden</button>
+        </form>
+    {% endif %}
+    <a href="{% url 'produccion:orden_lista' %}" class="btn btn-outline-secondary">Volver</a>
+</div>
+{% endblock %}

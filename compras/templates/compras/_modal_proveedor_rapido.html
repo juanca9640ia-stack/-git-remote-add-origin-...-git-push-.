@@ -1,0 +1,87 @@
+<div class="modal fade" id="modalProveedorRapido" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Nuevo proveedor</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="proveedor-rapido-error" class="alert alert-danger d-none"></div>
+                <div class="mb-2">
+                    <label class="form-label small">Nombre *</label>
+                    <input type="text" class="form-control" id="pvr-nombre">
+                </div>
+                <div class="mb-2">
+                    <label class="form-label small">NIT/Documento</label>
+                    <input type="text" class="form-control" id="pvr-nit">
+                </div>
+                <div class="mb-2">
+                    <label class="form-label small">Teléfono</label>
+                    <input type="text" class="form-control" id="pvr-telefono">
+                </div>
+                <div class="mb-2">
+                    <label class="form-label small">Email</label>
+                    <input type="email" class="form-control" id="pvr-email">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" id="pvr-guardar">Guardar proveedor</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    var modalEl = document.getElementById('modalProveedorRapido');
+    var modal = new bootstrap.Modal(modalEl);
+    var proveedorSelect = document.getElementById('id_proveedor');
+    var errorBox = document.getElementById('proveedor-rapido-error');
+
+    document.getElementById('abrir-modal-proveedor')?.addEventListener('click', function () {
+        errorBox.classList.add('d-none');
+        errorBox.textContent = '';
+        ['pvr-nombre', 'pvr-nit', 'pvr-telefono', 'pvr-email'].forEach(function (id) {
+            document.getElementById(id).value = '';
+        });
+        modal.show();
+    });
+
+    document.getElementById('pvr-guardar').addEventListener('click', function () {
+        var csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+        var data = new URLSearchParams({
+            nombre: document.getElementById('pvr-nombre').value,
+            nit: document.getElementById('pvr-nit').value,
+            telefono: document.getElementById('pvr-telefono').value,
+            email: document.getElementById('pvr-email').value,
+        });
+        fetch("{% url 'compras:proveedor_crear_rapido' %}", {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrfToken,
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: data,
+        })
+            .then(function (resp) { return resp.json(); })
+            .then(function (json) {
+                if (json.ok) {
+                    var option = document.createElement('option');
+                    option.value = json.id;
+                    option.textContent = json.nombre;
+                    option.selected = true;
+                    proveedorSelect.appendChild(option);
+                    modal.hide();
+                } else {
+                    var mensajes = [];
+                    Object.keys(json.errors).forEach(function (campo) {
+                        json.errors[campo].forEach(function (err) { mensajes.push(err.message || err); });
+                    });
+                    errorBox.textContent = mensajes.join(' ');
+                    errorBox.classList.remove('d-none');
+                }
+            });
+    });
+});
+</script>

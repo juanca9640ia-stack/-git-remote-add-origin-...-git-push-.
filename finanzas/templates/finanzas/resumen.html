@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% load money %}
+{% block title %}Resumen financiero{% endblock %}
+{% block content %}
+<h2 class="mb-4">Resumen financiero</h2>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="card card-kpi p-3">
+            <small class="text-muted text-uppercase">Por cobrar</small>
+            <div class="fs-4 fw-bold text-success">{{ total_por_cobrar|cop }}</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card card-kpi p-3">
+            <small class="text-muted text-uppercase">Por pagar</small>
+            <div class="fs-4 fw-bold text-danger">{{ total_por_pagar|cop }}</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card card-kpi p-3">
+            <small class="text-muted text-uppercase">Ingresos (ventas confirmadas)</small>
+            <div class="fs-4 fw-bold">{{ ingresos_totales|cop }}</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card card-kpi p-3">
+            <small class="text-muted text-uppercase">Egresos (compras + nómina)</small>
+            <div class="fs-4 fw-bold">{{ egresos_totales|cop }}</div>
+        </div>
+    </div>
+</div>
+
+<div class="card card-kpi p-3 mb-4" style="max-width:320px;">
+    <small class="text-muted text-uppercase">Balance (ingresos - egresos)</small>
+    <div class="fs-3 fw-bold {% if balance >= 0 %}text-success{% else %}text-danger{% endif %}">
+        {{ balance|cop }}
+    </div>
+</div>
+
+<div class="row g-3">
+    <div class="col-md-6">
+        <div class="card card-kpi">
+            <div class="card-header bg-white fw-bold d-flex justify-content-between">
+                Cuentas por cobrar pendientes
+                <a href="{% url 'finanzas:cxc_lista' %}" class="small">Ver todas</a>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead><tr><th>Venta</th><th>Cliente</th><th class="text-end">Saldo</th></tr></thead>
+                    <tbody>
+                    {% for cuenta in cxc_pendientes %}
+                        <tr onclick="window.location='{% url 'finanzas:cxc_detalle' cuenta.pk %}'" style="cursor:pointer">
+                            <td>{{ cuenta.venta.numero }}</td>
+                            <td>{{ cuenta.venta.cliente }}</td>
+                            <td class="text-end">{{ cuenta.saldo_pendiente|cop }}</td>
+                        </tr>
+                    {% empty %}
+                        <tr><td colspan="3" class="text-center text-muted py-3">Sin cuentas pendientes</td></tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card card-kpi">
+            <div class="card-header bg-white fw-bold d-flex justify-content-between">
+                Cuentas por pagar pendientes
+                <a href="{% url 'finanzas:cxp_lista' %}" class="small">Ver todas</a>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead><tr><th>Origen</th><th>Contraparte</th><th class="text-end">Saldo</th></tr></thead>
+                    <tbody>
+                    {% for cuenta in cxp_pendientes %}
+                        <tr onclick="window.location='{% url 'finanzas:cxp_detalle' cuenta.pk %}'" style="cursor:pointer">
+                            <td>{{ cuenta.origen }}</td>
+                            <td>{{ cuenta.contraparte }}</td>
+                            <td class="text-end">{{ cuenta.saldo_pendiente|cop }}</td>
+                        </tr>
+                    {% empty %}
+                        <tr><td colspan="3" class="text-center text-muted py-3">Sin cuentas pendientes</td></tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

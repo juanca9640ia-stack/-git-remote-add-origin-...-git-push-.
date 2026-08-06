@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}{% if cliente %}Editar cliente{% else %}Nuevo cliente{% endif %}{% endblock %}
+{% block content %}
+<h2 class="mb-4">{% if cliente %}Editar cliente{% else %}Nuevo cliente{% endif %}</h2>
+<div class="card card-kpi p-4" style="max-width:560px;">
+    <form method="post">
+        {% csrf_token %}
+        <div class="row g-3">
+            <div class="col-12">
+                <label class="form-label">Nombre</label>
+                {{ form.nombre }}
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">NIT/Documento</label>
+                {{ form.documento }}
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Email</label>
+                {{ form.email }}
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Teléfono</label>
+                {{ form.telefono }}
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Dirección</label>
+                {{ form.direccion }}
+            </div>
+            <div class="col-12 form-check">
+                {{ form.activo }}
+                <label class="form-check-label">Activo</label>
+            </div>
+        </div>
+        <div class="mt-4">
+            <button type="submit" class="btn btn-primary">Guardar</button>
+            <a href="{% url 'ventas:cliente_lista' %}" class="btn btn-outline-secondary">Cancelar</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

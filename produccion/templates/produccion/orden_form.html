@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}{% if orden %}Editar orden{% else %}Nueva orden de producción{% endif %}{% endblock %}
+{% block content %}
+<h2 class="mb-4">{% if orden %}Editar orden {{ orden.numero }}{% else %}Nueva orden de producción{% endif %}</h2>
+
+{% if not form.fields.producto.queryset.exists %}
+    <div class="alert alert-warning">
+        No hay productos con una lista de materiales definida todavía.
+        <a href="{% url 'produccion:bom_crear' %}">Crea una receta primero</a>.
+    </div>
+{% endif %}
+
+<div class="card card-kpi p-4" style="max-width:560px;">
+    <form method="post">
+        {% csrf_token %}
+        <div class="row g-3">
+            <div class="col-12">
+                <label class="form-label">Producto a producir</label>
+                {{ form.producto }}
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Cantidad a producir</label>
+                {{ form.cantidad }}
+            </div>
+            <div class="col-12">
+                <label class="form-label">Notas</label>
+                {{ form.notas }}
+            </div>
+        </div>
+        <div class="mt-4">
+            <button type="submit" class="btn btn-primary">Guardar</button>
+            <a href="{% if orden %}{% url 'produccion:orden_detalle' orden.pk %}{% else %}{% url 'produccion:orden_lista' %}{% endif %}" class="btn btn-outline-secondary">Cancelar</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

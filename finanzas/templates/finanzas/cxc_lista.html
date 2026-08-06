@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% load money %}
+{% block title %}Cuentas por cobrar{% endblock %}
+{% block content %}
+<h2 class="mb-4">Cuentas por cobrar</h2>
+
+{% if vencidas_count %}
+<div class="alert alert-danger d-flex justify-content-between align-items-center">
+    <div><i class="bi bi-exclamation-triangle-fill me-2"></i><strong>{{ vencidas_count }}</strong> factura(s) vencida(s) por <strong>{{ vencidas_total|cop }}</strong>.</div>
+    <a href="?vencidas=1" class="btn btn-sm btn-outline-danger">Ver vencidas</a>
+</div>
+{% endif %}
+
+<form class="row g-2 mb-3" method="get">
+    <div class="col-auto">
+        <select name="estado" class="form-select" onchange="this.form.submit()">
+            <option value="">Todos los estados</option>
+            <option value="pendiente" {% if estado == "pendiente" %}selected{% endif %}>Pendiente</option>
+            <option value="parcial" {% if estado == "parcial" %}selected{% endif %}>Pago parcial</option>
+            <option value="pagada" {% if estado == "pagada" %}selected{% endif %}>Pagada</option>
+            <option value="anulada" {% if estado == "anulada" %}selected{% endif %}>Anulada</option>
+        </select>
+    </div>
+    <div class="col-auto">
+        <select name="cliente" class="form-select" onchange="this.form.submit()">
+            <option value="">Todos los clientes</option>
+            {% for cliente in clientes %}
+                <option value="{{ cliente.pk }}" {% if cliente_id == cliente.pk|stringformat:"s" %}selected{% endif %}>{{ cliente.nombre }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="col-auto form-check pt-2">
+        <input type="checkbox" name="vencidas" value="1" class="form-check-input" id="soloVencidas" {% if solo_vencidas %}checked{% endif %} onchange="this.form.submit()">
+        <label class="form-check-label" for="soloVencidas">Solo vencidas</label>
+    </div>
+</form>
+
+<div class="row g-3 mb-3">
+    <div class="col-md-7">
+        <div class="card card-kpi">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0 align-middle">
+                    <thead><tr><th>Venta</th><th>Cliente</th><th>Estado</th><th>Vence</th><th class="text-end">Monto total</th><th class="text-end">Saldo pendiente</th></tr></thead>
+                    <tbody>
+                    {% for cuenta in cuentas %}
+                        <tr onclick="window.location='{% url 'finanzas:cxc_detalle' cuenta.pk %}'" style="cursor:pointer" class="{% if cuenta.vencida %}table-danger{% endif %}">
+                            <td>{{ cuenta.venta.numero }}</td>
+                            <td>{{ cuenta.venta.cliente }}</td>
+                            <td>
+                                {% if cuenta.estado == "pagada" %}
+                                    <span class="badge bg-success">Pagada</span>
+                                {% elif cuenta.estado == "parcial" %}
+                                    <span class="badge bg-info text-dark">Pago parcial</span>
+                                {% elif cuenta.estado == "anulada" %}
+                                    <span class="badge bg-secondary">Anulada</span>
+                                {% else %}
+                                    <span class="badge bg-warning text-dark">Pendiente</span>
+                                {% endif %}
+                                {% if cuenta.vencida %}<span class="badge bg-danger">Vencida</span>{% endif %}
+                            </td>
+                            <td>{{ cuenta.fecha_vencimiento|date:"d/m/Y"|default:"—" }}</td>
+                            <td class="text-end">{{ cuenta.monto_total|cop }}</td>
+                            <td class="text-end">{{ cuenta.saldo_pendiente|cop }}</td>
+                        </tr>
+                    {% empty %}
+                        <tr><td colspan="6" class="text-center text-muted py-4">No hay cuentas por cobrar</td></tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-5">
+        <div class="card card-kpi">
+            <div class="card-header bg-white fw-bold d-flex justify-content-between align-items-center">
+                Saldo por cliente
+                <span class="text-muted small fw-normal">{{ saldo_por_cliente|length }} cliente(s)</span>
+            </div>
+            <div class="list-group list-group-flush">
+                {% for fila in saldo_por_cliente %}
+                    <a href="{% url 'finanzas:cxc_lista' %}?cliente={{ fila.venta__cliente__id }}" class="list-group-item list-group-item-action py-3">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="sap-avatar">{{ fila.venta__cliente__nombre|slice:":1"|upper }}</span>
+                                <span class="fw-medium">{{ fila.venta__cliente__nombre }}</span>
+                            </div>
+                            <strong>{{ fila.saldo|cop }}</strong>
+                        </div>
+                        <div class="progress" style="height:4px;">
+                            <div class="progress-bar bg-danger" style="width:{{ fila.porcentaje }}%;"></div>
+                        </div>
+                    </a>
+                {% empty %}
+                    <div class="list-group-item text-center text-muted py-4">Nadie debe actualmente</div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

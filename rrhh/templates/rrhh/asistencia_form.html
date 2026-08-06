@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Registrar asistencia{% endblock %}
+{% block content %}
+<h2 class="mb-4">Registrar asistencia — {{ empleado.nombre_completo }}</h2>
+<div class="card card-kpi p-4" style="max-width:520px;">
+    <form method="post">
+        {% csrf_token %}
+        <div class="row g-3">
+            <div class="col-md-6">
+                <label class="form-label">Fecha</label>
+                {{ form.fecha }}
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Estado</label>
+                {{ form.estado }}
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Hora entrada</label>
+                {{ form.hora_entrada }}
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Hora salida</label>
+                {{ form.hora_salida }}
+            </div>
+            <div class="col-12">
+                <label class="form-label">Notas</label>
+                {{ form.notas }}
+            </div>
+        </div>
+        <div class="mt-4">
+            <button type="submit" class="btn btn-primary">Guardar</button>
+            <a href="{% url 'rrhh:asistencia_lista' %}" class="btn btn-outline-secondary">Cancelar</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

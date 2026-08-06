@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Datos de la empresa{% endblock %}
+{% block content %}
+<h2 class="mb-4">Datos de la empresa</h2>
+
+<div class="card card-kpi p-4" style="max-width:560px;">
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        <div class="row g-3">
+            <div class="col-12">
+                <label class="form-label">Logo</label>
+                {% if form.instance.logo %}
+                    <div class="mb-2">
+                        <img src="{{ form.instance.logo.url }}" alt="Logo actual" style="max-height:70px;max-width:220px;object-fit:contain;border:1px solid var(--sap-border);border-radius:4px;padding:.25rem;">
+                    </div>
+                {% endif %}
+                {{ form.logo }}
+                <small class="text-muted d-block mt-1">{{ form.logo.help_text }}</small>
+                {% if form.logo.errors %}<div class="text-danger small">{{ form.logo.errors|join:", " }}</div>{% endif %}
+            </div>
+            <div class="col-12">
+                <label class="form-label">Nombre</label>
+                {{ form.nombre }}
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">NIT/Documento</label>
+                {{ form.nit }}
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Moneda</label>
+                {{ form.moneda }}
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Teléfono</label>
+                {{ form.telefono }}
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Email</label>
+                {{ form.email }}
+            </div>
+            <div class="col-12">
+                <label class="form-label">Dirección</label>
+                {{ form.direccion }}
+            </div>
+        </div>
+        <div class="mt-4">
+            <button type="submit" class="btn btn-primary">Guardar</button>
+        </div>
+    </form>
+</div>
+{% endblock %}

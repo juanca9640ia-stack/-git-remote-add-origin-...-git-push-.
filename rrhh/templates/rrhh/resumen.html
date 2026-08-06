@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% load money %}
+{% block title %}RR.HH. - Resumen{% endblock %}
+{% block content %}
+<h2 class="mb-4">Recursos Humanos</h2>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="card card-kpi p-3">
+            <small class="text-muted text-uppercase">Empleados activos</small>
+            <div class="fs-4 fw-bold">{{ total_empleados }}</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card card-kpi p-3">
+            <small class="text-muted text-uppercase">Presentes hoy</small>
+            <div class="fs-4 fw-bold text-success">{{ presentes_hoy }}</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card card-kpi p-3">
+            <small class="text-muted text-uppercase">Ausentes hoy</small>
+            <div class="fs-4 fw-bold text-danger">{{ ausentes_hoy }}</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card card-kpi p-3">
+            <small class="text-muted text-uppercase">Sin registrar hoy</small>
+            <div class="fs-4 fw-bold text-warning">{{ sin_registrar_hoy }}</div>
+        </div>
+    </div>
+</div>
+
+<div class="card card-kpi p-3" style="max-width:360px;">
+    <small class="text-muted text-uppercase">Última nómina</small>
+    {% if ultima_nomina %}
+        <div class="fs-5 fw-bold">{{ ultima_nomina.periodo }}</div>
+        <div class="text-muted">{{ ultima_nomina.total_pagar|cop }} · {{ ultima_nomina.get_estado_display }}</div>
+        <a href="{% url 'rrhh:nomina_detalle' ultima_nomina.pk %}" class="small">Ver detalle</a>
+    {% else %}
+        <div class="text-muted py-2">Aún no se ha creado ninguna nómina</div>
+        <a href="{% url 'rrhh:nomina_crear' %}" class="small">Crear la primera</a>
+    {% endif %}
+</div>
+{% endblock %}
