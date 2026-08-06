@@ -1,4 +1,4 @@
-from django.contrib.auth.models import Group, Permission
+from django.core.management import call_command
 from django.core.management.base import BaseCommand
 
 from compras.models import Proveedor
@@ -8,19 +8,12 @@ from rrhh.models import Departamento, Empleado
 from ventas.models import Cliente
 
 
-GRUPOS_PERMISOS = {
-    "Administración": None,  # todos los permisos
-    "Ventas": ["ventas"],
-    "Inventario": ["inventario"],
-    "Compras": ["compras"],
-    "Finanzas": ["finanzas"],
-    "Producción": ["produccion"],
-    "RR.HH.": ["rrhh"],
-}
-
-
 class Command(BaseCommand):
-    help = "Crea grupos de permisos y datos de ejemplo (categorías, productos, clientes)."
+    help = (
+        "Crea grupos de permisos y datos de ejemplo (categorías, productos, clientes). "
+        "Solo para desarrollo local/demo: los datos de ejemplo NO deben correrse en producción, "
+        "usa 'crear_grupos_permisos' + 'crear_admin_inicial' para eso."
+    )
 
     def handle(self, *args, **options):
         self._crear_grupos()
@@ -28,16 +21,7 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS("Datos de ejemplo y grupos creados correctamente."))
 
     def _crear_grupos(self):
-        admin_group, _ = Group.objects.get_or_create(name="Administración")
-        admin_group.permissions.set(Permission.objects.all())
-
-        for nombre, apps in GRUPOS_PERMISOS.items():
-            if apps is None:
-                continue
-            group, _ = Group.objects.get_or_create(name=nombre)
-            permisos = Permission.objects.filter(content_type__app_label__in=apps)
-            group.permissions.set(permisos)
-        self.stdout.write("Grupos: Administración, Ventas, Inventario, Compras, Finanzas, Producción, RR.HH.")
+        call_command("crear_grupos_permisos")
 
     def _crear_datos_ejemplo(self):
         if Producto.objects.exists():
