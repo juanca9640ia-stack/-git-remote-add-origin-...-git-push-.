@@ -234,6 +234,10 @@ SECURE_REFERRER_POLICY = 'same-origin'
 X_FRAME_OPTIONS = 'DENY'
 
 if not DEBUG:
+    # Render (y otros PaaS) terminan TLS en su proxy y reenvían la petición por HTTP
+    # interno; sin esto, Django no detecta la petición como HTTPS y fallan tanto el
+    # redirect a HTTPS como la verificación CSRF y las cookies "Secure".
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
     SECURE_SSL_REDIRECT = True
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
