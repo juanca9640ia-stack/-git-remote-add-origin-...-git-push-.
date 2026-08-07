@@ -20,5 +20,7 @@ urlpatterns = [
     path('administracion/', include('administracion.urls')),
 ]
 
-if settings.DEBUG:
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+# whitenoise sirve los estáticos (CSS/JS) pero no los archivos subidos por el
+# usuario (ej. logo de la empresa); sin este servidor no habría forma de verlos
+# en producción, ya que no usamos un bucket externo (S3/Cloudinary) todavía.
+urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
