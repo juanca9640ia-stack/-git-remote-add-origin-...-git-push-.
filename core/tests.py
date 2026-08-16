@@ -43,10 +43,26 @@ class ModuloAccesoMiddlewareTests(TestCase):
             response = self.client.get(reverse(url_name))
             self.assertEqual(response.status_code, 200, f"{url_name} debería ser accesible para superusuario")
 
-    def test_dashboard_no_esta_restringido(self):
+    def test_usuario_sin_permiso_de_dashboard_ve_pantalla_sin_acceso(self):
         self.client.force_login(self.sin_grupo)
         response = self.client.get(reverse("dashboard"))
         self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "core/sin_acceso.html")
+
+    def test_usuario_con_permiso_ve_dashboard(self):
+        permiso = Permission.objects.get(content_type__app_label="core", codename="ver_dashboard")
+        self.vendedor.user_permissions.add(permiso)
+        self.client.force_login(self.vendedor)
+        response = self.client.get(reverse("dashboard"))
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "core/dashboard.html")
+
+    def test_usuario_solo_con_marcar_asistencia_es_redirigido_a_mi_perfil(self):
+        permiso = Permission.objects.get(content_type__app_label="rrhh", codename="marcar_propia_asistencia")
+        self.sin_grupo.user_permissions.add(permiso)
+        self.client.force_login(self.sin_grupo)
+        response = self.client.get(reverse("dashboard"))
+        self.assertRedirects(response, reverse("rrhh:mi_perfil"))
 
 
 class LoginBruteForceTests(TestCase):

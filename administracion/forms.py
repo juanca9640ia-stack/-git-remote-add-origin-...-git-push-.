@@ -1,7 +1,8 @@
 from django import forms
-from django.contrib.auth.models import Group, User
+from django.contrib.auth.models import Group, Permission, User
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
+from django.db.models import Q
 
 from core.models import Empresa
 
@@ -80,14 +81,44 @@ class UsuarioEditarForm(UsuarioBaseForm):
     pass
 
 
-MODULOS_ROL = [
-    ("ventas", "Ventas"),
-    ("inventario", "Inventario"),
-    ("compras", "Compras"),
-    ("finanzas", "Finanzas"),
-    ("produccion", "Producción"),
-    ("rrhh", "RR.HH."),
+# Cada apartado define qué permisos de Django otorga al marcarlo. "apps" concede TODOS
+# los permisos de esas apps (comportamiento de módulo completo, como antes). "modelos"
+# concede todos los permisos de esos modelos puntuales (más fino que una app completa).
+# "permisos" concede permisos individuales por su codename completo "app_label.codename"
+# (para permisos personalizados que no pertenecen a un modelo de negocio, como ver el
+# dashboard o registrar la propia asistencia).
+APARTADOS_ROL = [
+    ("dashboard", "Dashboard", {"permisos": ["core.ver_dashboard"]}),
+    ("ventas", "Ventas", {"apps": ["ventas"]}),
+    ("compras", "Compras", {"apps": ["compras"]}),
+    ("inventario", "Inventario", {"apps": ["inventario"]}),
+    ("finanzas", "Finanzas", {"apps": ["finanzas"]}),
+    ("produccion", "Producción", {"apps": ["produccion"]}),
+    ("rrhh_operario", "RR.HH. · Operario (su propio perfil y asistencia)", {
+        "permisos": ["rrhh.marcar_propia_asistencia", "rrhh.ver_propio_perfil"],
+    }),
+    ("rrhh_empleados", "RR.HH. · Empleados y departamentos", {"modelos": [("rrhh", "empleado"), ("rrhh", "departamento")]}),
+    ("rrhh_asistencia", "RR.HH. · Asistencia de todos los empleados", {"modelos": [("rrhh", "asistencia")]}),
+    ("rrhh_nomina", "RR.HH. · Nómina", {"modelos": [("rrhh", "nomina"), ("rrhh", "detallenomina")]}),
+    ("rrhh_prestamos", "RR.HH. · Préstamos", {"modelos": [("rrhh", "prestamo"), ("rrhh", "abonoprestamo")]}),
 ]
+
+def permisos_de_apartado(spec):
+    """Devuelve el queryset de Permission que corresponde a la definición de un apartado."""
+    if "apps" in spec:
+        return Permission.objects.filter(content_type__app_label__in=spec["apps"])
+    if "modelos" in spec:
+        query = Q()
+        for app_label, modelo in spec["modelos"]:
+            query |= Q(content_type__app_label=app_label, content_type__model=modelo)
+        return Permission.objects.filter(query)
+    if "permisos" in spec:
+        query = Q()
+        for permiso in spec["permisos"]:
+            app_label, codename = permiso.split(".")
+            query |= Q(content_type__app_label=app_label, codename=codename)
+        return Permission.objects.filter(query)
+    return Permission.objects.none()
 
 
 class RolForm(forms.Form):
@@ -96,9 +127,9 @@ class RolForm(forms.Form):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["nombre"].widget.attrs.setdefault("class", "form-control")
-        for app_label, etiqueta in MODULOS_ROL:
-            self.fields[app_label] = forms.BooleanField(required=False, label=etiqueta)
-            self.fields[app_label].widget.attrs.setdefault("class", "form-check-input")
+        for clave, etiqueta, _spec in APARTADOS_ROL:
+            self.fields[clave] = forms.BooleanField(required=False, label=etiqueta)
+            self.fields[clave].widget.attrs.setdefault("class", "form-check-input")
 
     def clean_nombre(self):
         nombre = self.cleaned_data["nombre"].strip()

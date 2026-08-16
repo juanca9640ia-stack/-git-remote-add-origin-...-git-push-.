@@ -79,6 +79,10 @@ class Empleado(models.Model):
 
     class Meta:
         ordering = ["nombre_completo"]
+        permissions = [
+            ("marcar_propia_asistencia", "Puede registrar su propia entrada/salida"),
+            ("ver_propio_perfil", "Puede ver su propio perfil, asistencia, préstamos y recibos de nómina"),
+        ]
 
     def __str__(self):
         return self.nombre_completo

@@ -10,7 +10,8 @@
             {{ form.nombre }}
             {% if form.nombre.errors %}<div class="text-danger small">{{ form.nombre.errors|join:" " }}</div>{% endif %}
         </div>
-        <label class="form-label">Acceso a módulos</label>
+        <label class="form-label">Permisos por apartado</label>
+        <p class="text-muted small">Marca solo lo que este rol debe poder ver y hacer. Por ejemplo, un rol para un trabajador de campo puede tener únicamente "RR.HH. · Registrar mi propia asistencia".</p>
         {% for field in form %}
             {% if field.name != "nombre" %}
                 <div class="form-check mb-1">

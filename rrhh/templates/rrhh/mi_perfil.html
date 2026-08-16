@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+{% load money %}
+{% block title %}Mi perfil{% endblock %}
+{% block content %}
+{% if not empleado %}
+<div class="d-flex justify-content-center">
+    <div class="card card-kpi p-4 text-center" style="max-width:420px; width:100%;">
+        <i class="bi bi-person-x display-4 text-muted mb-2"></i>
+        <p class="text-muted mb-0">Tu usuario no está vinculado a un empleado. Contacta a un administrador.</p>
+    </div>
+</div>
+{% else %}
+<h2 class="mb-1">Mi perfil</h2>
+<p class="text-muted mb-4">{{ empleado.nombre_completo }} · {{ empleado.cargo }}{% if empleado.departamento %} · {{ empleado.departamento }}{% endif %}</p>
+
+<div class="row g-3">
+    {% if puede_marcar %}
+    <div class="col-12 col-lg-5">
+        <div class="card card-kpi p-4 text-center h-100">
+            <i class="bi bi-calendar-check display-4 text-primary mb-2"></i>
+            <h5 class="mb-1">Asistencia de hoy</h5>
+            <p class="text-muted small mb-3">{{ "now"|date:"l, d/m/Y" }}</p>
+
+            {% if asistencia %}
+                <div class="row mb-3">
+                    <div class="col-6">
+                        <div class="small text-muted">Entrada</div>
+                        <div class="fs-4">{{ asistencia.hora_entrada|default:"—" }}</div>
+                    </div>
+                    <div class="col-6">
+                        <div class="small text-muted">Salida</div>
+                        <div class="fs-4">{{ asistencia.hora_salida|default:"—" }}</div>
+                    </div>
+                </div>
+            {% else %}
+                <p class="text-muted mb-3">Aún no has registrado tu entrada hoy.</p>
+            {% endif %}
+
+            <div class="d-grid gap-2">
+                {% if not asistencia %}
+                    <form method="post" action="{% url 'rrhh:mi_perfil_marcar_entrada' %}">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-success btn-lg w-100">
+                            <i class="bi bi-box-arrow-in-right me-1"></i>Marcar entrada
+                        </button>
+                    </form>
+                {% elif not asistencia.hora_salida %}
+                    <form method="post" action="{% url 'rrhh:mi_perfil_marcar_salida' %}">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-secondary btn-lg w-100">
+                            <i class="bi bi-box-arrow-right me-1"></i>Marcar salida
+                        </button>
+                    </form>
+                {% else %}
+                    <div class="alert alert-success mb-0">Jornada completada por hoy.</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if puede_ver_perfil %}
+    <div class="col-12 {% if puede_marcar %}col-lg-7{% endif %}">
+        <div class="card card-kpi p-3 mb-3">
+            <h6 class="mb-3"><i class="bi bi-calendar3 me-1"></i>Mi historial de asistencia</h6>
+            <div class="table-responsive">
+                <table class="table table-sm mb-0 align-middle">
+                    <thead><tr><th>Fecha</th><th>Estado</th><th>Entrada</th><th>Salida</th></tr></thead>
+                    <tbody>
+                    {% for a in asistencias %}
+                        <tr>
+                            <td>{{ a.fecha }}</td>
+                            <td>{{ a.get_estado_display }}</td>
+                            <td>{{ a.hora_entrada|default:"—" }}</td>
+                            <td>{{ a.hora_salida|default:"—" }}</td>
+                        </tr>
+                    {% empty %}
+                        <tr><td colspan="4" class="text-center text-muted py-3">Sin registros todavía</td></tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="card card-kpi p-3 mb-3">
+            <h6 class="mb-3"><i class="bi bi-piggy-bank me-1"></i>Mis préstamos</h6>
+            <div class="table-responsive">
+                <table class="table table-sm mb-0 align-middle">
+                    <thead><tr><th>Fecha</th><th>Monto</th><th>Saldo pendiente</th><th>Estado</th></tr></thead>
+                    <tbody>
+                    {% for p in prestamos %}
+                        <tr>
+                            <td>{{ p.fecha_otorgado }}</td>
+                            <td>{{ p.monto|cop }}</td>
+                            <td>{{ p.saldo_pendiente|cop }}</td>
+                            <td>
+                                {% if p.estado == "pagado" %}
+                                    <span class="badge bg-success">Pagado</span>
+                                {% else %}
+                                    <span class="badge bg-warning text-dark">Activo</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr><td colspan="4" class="text-center text-muted py-3">No tienes préstamos registrados</td></tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="card card-kpi p-3">
+            <h6 class="mb-3"><i class="bi bi-cash-stack me-1"></i>Mis recibos de nómina</h6>
+            <div class="table-responsive">
+                <table class="table table-sm mb-0 align-middle">
+                    <thead><tr><th>Período</th><th>Total</th><th class="text-end">Recibo</th></tr></thead>
+                    <tbody>
+                    {% for r in recibos %}
+                        <tr>
+                            <td>{{ r.nomina.periodo }}</td>
+                            <td>{{ r.total|cop }}</td>
+                            <td class="text-end">
+                                <a href="{% url 'rrhh:detalle_nomina_recibo' r.pk %}" class="btn btn-sm btn-outline-primary">Ver</a>
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr><td colspan="3" class="text-center text-muted py-3">Aún no tienes recibos procesados</td></tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+{% endblock %}

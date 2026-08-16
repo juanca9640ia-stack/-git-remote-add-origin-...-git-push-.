@@ -243,3 +243,23 @@ class RolTests(TestCase):
         self.client.force_login(normal)
         response = self.client.get(reverse("administracion:rol_lista"))
         self.assertEqual(response.status_code, 302)
+
+    def test_apartado_operario_otorga_solo_los_permisos_de_autoservicio(self):
+        response = self.client.post(reverse("administracion:rol_crear"), {
+            "nombre": "Trabajador de campo", "rrhh_operario": "on",
+        })
+        self.assertRedirects(response, reverse("administracion:rol_lista"))
+
+        grupo = Group.objects.get(name="Trabajador de campo")
+        codenames = set(grupo.permissions.values_list("codename", flat=True))
+        self.assertEqual(codenames, {"marcar_propia_asistencia", "ver_propio_perfil"})
+
+    def test_apartado_rrhh_empleados_no_incluye_nomina_ni_prestamos(self):
+        response = self.client.post(reverse("administracion:rol_crear"), {
+            "nombre": "RRHH junior", "rrhh_empleados": "on",
+        })
+        self.assertRedirects(response, reverse("administracion:rol_lista"))
+
+        grupo = Group.objects.get(name="RRHH junior")
+        modelos = set(grupo.permissions.values_list("content_type__model", flat=True))
+        self.assertEqual(modelos, {"empleado", "departamento"})

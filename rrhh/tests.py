@@ -1,8 +1,10 @@
 import datetime
 from decimal import Decimal
 
+from django.contrib.auth.models import Permission, User
 from django.core.exceptions import ValidationError
 from django.test import TestCase
+from django.urls import reverse
 from django.utils import timezone
 
 from rrhh.forms import DetalleNominaForm, EmpleadoForm, NominaForm
@@ -382,3 +384,75 @@ class NominaPeriodoSemanalTests(TestCase):
         nomina.generar_detalles()
 
         self.assertEqual(nomina.total_pagar, Decimal("110000"))
+
+
+class MiPerfilTests(TestCase):
+    def setUp(self):
+        self.empleado = Empleado.objects.create(
+            nombre_completo="Trabajador de campo", documento="9001", cargo="Obrero",
+            telefono="3000000099", tipo_pago=Empleado.PAGO_DIA, valor_dia=Decimal("60000"), activo=True,
+        )
+        self.trabajador = User.objects.create_user(username="trabajador", password="ClaveSegura123")
+        self.empleado.usuario = self.trabajador
+        self.empleado.save(update_fields=["usuario"])
+        self.trabajador.user_permissions.add(
+            Permission.objects.get(content_type__app_label="rrhh", codename="marcar_propia_asistencia"),
+            Permission.objects.get(content_type__app_label="rrhh", codename="ver_propio_perfil"),
+        )
+        self.client.force_login(self.trabajador)
+
+    def test_puede_ver_su_pantalla_de_perfil(self):
+        response = self.client.get(reverse("rrhh:mi_perfil"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Trabajador de campo")
+
+    def test_puede_marcar_su_propia_entrada_y_salida(self):
+        self.client.post(reverse("rrhh:mi_perfil_marcar_entrada"))
+        asistencia = Asistencia.objects.get(empleado=self.empleado, fecha=timezone.localdate())
+        self.assertIsNotNone(asistencia.hora_entrada)
+        self.assertIsNone(asistencia.hora_salida)
+
+        self.client.post(reverse("rrhh:mi_perfil_marcar_salida"))
+        asistencia.refresh_from_db()
+        self.assertIsNotNone(asistencia.hora_salida)
+
+    def test_no_puede_ver_empleados_ni_nomina_ni_prestamos_ni_asistencia_general(self):
+        # No se usa assertRedirects con follow porque el propio dashboard redirige de
+        # nuevo (este usuario no tiene permiso de ver_dashboard): basta con confirmar
+        # que la vista bloqueada no entrega su contenido y sí redirige.
+        for url_name in (
+            "rrhh:empleado_lista", "rrhh:nomina_lista", "rrhh:prestamo_lista", "rrhh:asistencia_lista",
+        ):
+            response = self.client.get(reverse(url_name))
+            self.assertEqual(response.status_code, 302, f"{url_name} debería estar bloqueado")
+            self.assertEqual(response.url, reverse("dashboard"))
+
+    def test_ve_sus_propios_prestamos_pero_no_los_de_otro_empleado(self):
+        Prestamo.objects.create(empleado=self.empleado, monto=Decimal("100000"))
+        otro_empleado = Empleado.objects.create(
+            nombre_completo="Otro Trabajador", documento="9002", cargo="Obrero", telefono="3000000098",
+        )
+        Prestamo.objects.create(empleado=otro_empleado, monto=Decimal("500000"))
+
+        response = self.client.get(reverse("rrhh:mi_perfil"))
+        self.assertContains(response, "Trabajador de campo")
+        self.assertNotContains(response, "Otro Trabajador")
+        self.assertNotContains(response, "500.000")
+
+    def test_solo_con_ver_propio_perfil_no_ve_boton_de_marcar_asistencia(self):
+        self.trabajador.user_permissions.remove(
+            Permission.objects.get(content_type__app_label="rrhh", codename="marcar_propia_asistencia")
+        )
+        response = self.client.get(reverse("rrhh:mi_perfil"))
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, "Marcar entrada")
+
+    def test_usuario_sin_empleado_vinculado_no_puede_marcar_asistencia(self):
+        huerfano = User.objects.create_user(username="sin_empleado", password="ClaveSegura123")
+        huerfano.user_permissions.add(
+            Permission.objects.get(content_type__app_label="rrhh", codename="marcar_propia_asistencia")
+        )
+        self.client.force_login(huerfano)
+        response = self.client.post(reverse("rrhh:mi_perfil_marcar_entrada"), follow=True)
+        self.assertContains(response, "no está vinculado a un empleado")
+        self.assertFalse(Asistencia.objects.filter(fecha=timezone.localdate()).exists())

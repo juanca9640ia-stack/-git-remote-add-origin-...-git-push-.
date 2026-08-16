@@ -1,6 +1,6 @@
 from django.contrib import messages
 from django.contrib.admin.views.decorators import staff_member_required
-from django.contrib.auth.models import Group, Permission, User
+from django.contrib.auth.models import Group, User
 from django.db.models import Count, Q
 from django.shortcuts import get_object_or_404, redirect, render
 
@@ -9,7 +9,10 @@ from finanzas.models import PagoCliente, PagoProveedor
 from inventario.models import MovimientoInventario
 from rrhh.models import Nomina
 
-from .forms import CambiarPasswordForm, EmpresaForm, MODULOS_ROL, RolForm, UsuarioCrearForm, UsuarioEditarForm
+from .forms import (
+    APARTADOS_ROL, CambiarPasswordForm, EmpresaForm, RolForm, UsuarioCrearForm, UsuarioEditarForm,
+    permisos_de_apartado,
+)
 
 LIMITE_POR_FUENTE = 60
 LIMITE_TOTAL = 150
@@ -145,11 +148,9 @@ def rol_lista(request):
 @staff_member_required(login_url="login")
 def rol_form(request, pk=None):
     grupo = get_object_or_404(Group, pk=pk) if pk else None
-    modulos_actuales = set()
+    permisos_actuales = set()
     if grupo:
-        modulos_actuales = set(
-            grupo.permissions.values_list("content_type__app_label", flat=True).distinct()
-        )
+        permisos_actuales = set(grupo.permissions.values_list("id", flat=True))
 
     if request.method == "POST":
         form = RolForm(request.POST)
@@ -167,18 +168,21 @@ def rol_form(request, pk=None):
                     grupo.name = nombre
                     grupo.save(update_fields=["name"])
 
-                app_labels = [app_label for app_label, _ in MODULOS_ROL if form.cleaned_data[app_label]]
-                permisos = Permission.objects.filter(content_type__app_label__in=app_labels)
-                grupo.permissions.set(permisos)
+                permisos_ids = set()
+                for clave, _etiqueta, spec in APARTADOS_ROL:
+                    if form.cleaned_data[clave]:
+                        permisos_ids.update(permisos_de_apartado(spec).values_list("id", flat=True))
+                grupo.permissions.set(permisos_ids)
                 messages.success(request, f"Rol '{grupo.name}' guardado correctamente.")
                 return redirect("administracion:rol_lista")
     else:
         initial = {"nombre": grupo.name if grupo else ""}
-        for app_label, _ in MODULOS_ROL:
-            initial[app_label] = app_label in modulos_actuales
+        for clave, _etiqueta, spec in APARTADOS_ROL:
+            ids_apartado = set(permisos_de_apartado(spec).values_list("id", flat=True))
+            initial[clave] = bool(ids_apartado) and ids_apartado.issubset(permisos_actuales)
         form = RolForm(initial=initial)
 
-    return render(request, "administracion/rol_form.html", {"form": form, "grupo": grupo, "modulos": MODULOS_ROL})
+    return render(request, "administracion/rol_form.html", {"form": form, "grupo": grupo, "modulos": APARTADOS_ROL})
 
 
 @staff_member_required(login_url="login")

@@ -2,7 +2,7 @@ from decimal import Decimal
 
 from django.contrib.auth.decorators import login_required
 from django.contrib.humanize.templatetags.humanize import intcomma
-from django.shortcuts import render
+from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.utils import timezone
 
@@ -20,6 +20,11 @@ def _money(value):
 
 @login_required
 def dashboard(request):
+    if not (request.user.is_superuser or request.user.has_perm("core.ver_dashboard")):
+        if request.user.has_perm("rrhh.marcar_propia_asistencia") or request.user.has_perm("rrhh.ver_propio_perfil"):
+            return redirect("rrhh:mi_perfil")
+        return render(request, "core/sin_acceso.html")
+
     productos = Producto.objects.filter(activo=True)
     productos_stock_bajo = [p for p in productos if p.stock_bajo]
     valor_inventario = sum((p.valor_inventario for p in productos), Decimal("0"))

@@ -6,6 +6,9 @@ app_name = "rrhh"
 
 urlpatterns = [
     path("", views.resumen, name="resumen"),
+    path("mi-perfil/", views.mi_perfil, name="mi_perfil"),
+    path("mi-perfil/entrada/", views.mi_perfil_marcar_entrada, name="mi_perfil_marcar_entrada"),
+    path("mi-perfil/salida/", views.mi_perfil_marcar_salida, name="mi_perfil_marcar_salida"),
     path("departamentos/", views.departamento_lista, name="departamento_lista"),
     path("empleados/", views.empleado_lista, name="empleado_lista"),
     path("empleados/nuevo/", views.empleado_form, name="empleado_crear"),

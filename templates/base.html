@@ -62,11 +62,14 @@
 </header>
 <div class="sap-layout">
     <nav class="sap-sidenav" id="sapSidenav">
+        {% if perms.core.ver_dashboard %}
         <div class="sap-nav-section">General</div>
         <a href="{% url 'dashboard' %}" class="sap-nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">
             <i class="bi bi-speedometer2"></i>Dashboard
         </a>
+        {% endif %}
 
+        {% if perms.ventas %}
         <div class="sap-nav-section">Ventas</div>
         <a href="{% url 'ventas:venta_lista' %}" class="sap-nav-link {% if 'ventas/ventas' in request.path %}active{% endif %}">
             <i class="bi bi-receipt"></i>Ventas
@@ -77,7 +80,9 @@
         <a href="{% url 'ventas:cliente_lista' %}" class="sap-nav-link {% if 'clientes' in request.path %}active{% endif %}">
             <i class="bi bi-people"></i>Clientes
         </a>
+        {% endif %}
 
+        {% if perms.compras %}
         <div class="sap-nav-section">Compras</div>
         <a href="{% url 'compras:compra_lista' %}" class="sap-nav-link {% if 'compras/compras' in request.path %}active{% endif %}">
             <i class="bi bi-cart-check"></i>Compras
@@ -85,7 +90,9 @@
         <a href="{% url 'compras:proveedor_lista' %}" class="sap-nav-link {% if 'proveedores' in request.path %}active{% endif %}">
             <i class="bi bi-truck"></i>Proveedores
         </a>
+        {% endif %}
 
+        {% if perms.finanzas %}
         <div class="sap-nav-section">Finanzas</div>
         <a href="{% url 'finanzas:resumen' %}" class="sap-nav-link {% if request.resolver_match.url_name == 'resumen' and request.resolver_match.namespace == 'finanzas' %}active{% endif %}">
             <i class="bi bi-graph-up-arrow"></i>Resumen
@@ -96,27 +103,46 @@
         <a href="{% url 'finanzas:cxp_lista' %}" class="sap-nav-link {% if 'cuentas-por-pagar' in request.path %}active{% endif %}">
             <i class="bi bi-wallet2"></i>Por pagar
         </a>
+        {% endif %}
 
+        {% if perms.rrhh.view_empleado or perms.rrhh.view_asistencia or perms.rrhh.view_nomina or perms.rrhh.view_prestamo or perms.rrhh.marcar_propia_asistencia or perms.rrhh.ver_propio_perfil %}
         <div class="sap-nav-section">RR.HH.</div>
+        {% if perms.rrhh.view_empleado %}
         <a href="{% url 'rrhh:resumen' %}" class="sap-nav-link {% if request.resolver_match.url_name == 'resumen' and request.resolver_match.namespace == 'rrhh' %}active{% endif %}">
             <i class="bi bi-person-badge"></i>Resumen
         </a>
         <a href="{% url 'rrhh:empleado_lista' %}" class="sap-nav-link {% if 'rrhh/empleados' in request.path %}active{% endif %}">
             <i class="bi bi-person-vcard"></i>Empleados
         </a>
-        <a href="{% url 'rrhh:asistencia_lista' %}" class="sap-nav-link {% if 'asistencia' in request.path %}active{% endif %}">
+        {% endif %}
+        {% if perms.rrhh.marcar_propia_asistencia or perms.rrhh.ver_propio_perfil %}
+        <a href="{% url 'rrhh:mi_perfil' %}" class="sap-nav-link {% if 'mi-perfil' in request.path %}active{% endif %}">
+            <i class="bi bi-person-check"></i>Mi perfil
+        </a>
+        {% endif %}
+        {% if perms.rrhh.view_asistencia %}
+        <a href="{% url 'rrhh:asistencia_lista' %}" class="sap-nav-link {% if 'rrhh/asistencia' in request.path %}active{% endif %}">
             <i class="bi bi-calendar-check"></i>Asistencia
         </a>
+        {% endif %}
+        {% if perms.rrhh.view_nomina %}
         <a href="{% url 'rrhh:nomina_lista' %}" class="sap-nav-link {% if 'rrhh/nomina' in request.path %}active{% endif %}">
             <i class="bi bi-cash-stack"></i>Nómina
         </a>
+        {% endif %}
+        {% if perms.rrhh.view_prestamo %}
         <a href="{% url 'rrhh:prestamo_lista' %}" class="sap-nav-link {% if 'prestamos' in request.path %}active{% endif %}">
             <i class="bi bi-piggy-bank"></i>Préstamos
         </a>
+        {% endif %}
+        {% if perms.rrhh.view_departamento %}
         <a href="{% url 'rrhh:departamento_lista' %}" class="sap-nav-link {% if 'departamentos' in request.path %}active{% endif %}">
             <i class="bi bi-building"></i>Departamentos
         </a>
+        {% endif %}
+        {% endif %}
 
+        {% if perms.produccion %}
         <div class="sap-nav-section">Producción</div>
         <a href="{% url 'produccion:orden_lista' %}" class="sap-nav-link {% if 'produccion/ordenes' in request.path %}active{% endif %}">
             <i class="bi bi-gear-wide-connected"></i>Órdenes
@@ -124,7 +150,9 @@
         <a href="{% url 'produccion:bom_lista' %}" class="sap-nav-link {% if 'recetas' in request.path %}active{% endif %}">
             <i class="bi bi-clipboard-data"></i>Recetas (BOM)
         </a>
+        {% endif %}
 
+        {% if perms.inventario %}
         <div class="sap-nav-section">Inventario</div>
         <a href="{% url 'inventario:producto_lista' %}" class="sap-nav-link {% if 'productos' in request.path %}active{% endif %}">
             <i class="bi bi-box-seam"></i>Productos
@@ -138,6 +166,7 @@
         <a href="{% url 'inventario:movimiento_lista' %}" class="sap-nav-link {% if 'movimientos' in request.path %}active{% endif %}">
             <i class="bi bi-arrow-left-right"></i>Movimientos
         </a>
+        {% endif %}
 
         {% if user.is_staff %}
         <div class="sap-nav-section">Administración</div>

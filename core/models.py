@@ -33,6 +33,9 @@ class Empresa(models.Model):
     class Meta:
         verbose_name = "Datos de la empresa"
         verbose_name_plural = "Datos de la empresa"
+        permissions = [
+            ("ver_dashboard", "Puede ver el dashboard general"),
+        ]
 
     def __str__(self):
         return self.nombre
