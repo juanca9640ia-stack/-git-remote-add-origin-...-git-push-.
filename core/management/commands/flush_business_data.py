@@ -89,10 +89,17 @@ class Command(BaseCommand):
         ))
 
     def _reiniciar_contadores(self):
-        """Reinicia el autoincremento (para que el próximo registro sea #1 de nuevo). Solo aplica en SQLite."""
-        if connection.vendor != "sqlite":
-            return
-        tablas = [modelo._meta.db_table for modelo in MODELOS_A_BORRAR]
-        with connection.cursor() as cursor:
-            placeholders = ",".join(["%s"] * len(tablas))
-            cursor.execute(f"DELETE FROM sqlite_sequence WHERE name IN ({placeholders})", tablas)
+        """Reinicia el autoincremento (para que el próximo registro sea #1 de nuevo)."""
+        if connection.vendor == "sqlite":
+            tablas = [modelo._meta.db_table for modelo in MODELOS_A_BORRAR]
+            with connection.cursor() as cursor:
+                placeholders = ",".join(["%s"] * len(tablas))
+                cursor.execute(f"DELETE FROM sqlite_sequence WHERE name IN ({placeholders})", tablas)
+        elif connection.vendor == "postgresql":
+            with connection.cursor() as cursor:
+                for modelo in MODELOS_A_BORRAR:
+                    tabla = modelo._meta.db_table
+                    columna = modelo._meta.pk.column
+                    cursor.execute(
+                        "SELECT setval(pg_get_serial_sequence(%s, %s), 1, false)", [tabla, columna]
+                    )
