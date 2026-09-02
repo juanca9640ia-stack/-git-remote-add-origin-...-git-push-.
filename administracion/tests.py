@@ -299,6 +299,64 @@ class CambiarEmpresaTests(TestCase):
         self.assertEqual(self.client.session["empresa_activa_id"], self.empresa_b.pk)
 
 
+class EmpresaAltaTests(TestCase):
+    def setUp(self):
+        # En producción esto ya existe (lo crea crear_grupos_permisos en cada build);
+        # en la base de pruebas hay que sembrarlo para simular el mismo estado real.
+        from django.contrib.auth.models import Permission
+        grupo_admin = Group.objects.create(name="Administración")
+        grupo_admin.permissions.set(Permission.objects.all())
+
+        self.superadmin = User.objects.create_user(username="super_onboarding", password="ClaveSegura123")
+        PerfilUsuario.objects.create(usuario=self.superadmin, empresa_id=1, es_superadmin_plataforma=True)
+        self.normal = User.objects.create_user(username="normal_onboarding", password="ClaveSegura123")
+        PerfilUsuario.objects.create(usuario=self.normal, empresa_id=1, es_superadmin_plataforma=False)
+
+    def test_usuario_normal_no_puede_dar_de_alta_una_empresa(self):
+        self.client.force_login(self.normal)
+        response = self.client.get(reverse("administracion:empresa_alta"))
+        self.assertRedirects(response, reverse("dashboard"))
+
+    def test_superadmin_da_de_alta_una_empresa_con_su_primer_admin(self):
+        self.client.force_login(self.superadmin)
+        response = self.client.post(reverse("administracion:empresa_alta"), {
+            "nombre": "Constructora Nueva S.A.S", "nit": "900999888-1", "email": "",
+            "admin_username": "admin_nueva", "admin_password1": "ClaveSegura456", "admin_password2": "ClaveSegura456",
+        })
+        self.assertRedirects(response, reverse("administracion:empresa_lista"))
+
+        empresa = Empresa.objects.get(nombre="Constructora Nueva S.A.S")
+        admin = User.objects.get(username="admin_nueva")
+        self.assertTrue(admin.check_password("ClaveSegura456"))
+        self.assertTrue(admin.is_staff)
+        self.assertEqual(admin.perfil.empresa, empresa)
+        self.assertFalse(admin.perfil.es_superadmin_plataforma)
+        self.assertIn("Administración", admin.groups.values_list("name", flat=True))
+
+    def test_nueva_empresa_arranca_completamente_vacia_y_aislada(self):
+        self.client.force_login(self.superadmin)
+        self.client.post(reverse("administracion:empresa_alta"), {
+            "nombre": "Constructora Aislada S.A.S", "nit": "", "email": "",
+            "admin_username": "admin_aislada", "admin_password1": "ClaveSegura456", "admin_password2": "ClaveSegura456",
+        })
+        admin = User.objects.get(username="admin_aislada")
+
+        Cliente.objects.create(empresa_id=1, nombre="Cliente de Jasda")
+
+        self.client.force_login(admin)
+        response = self.client.get(reverse("ventas:cliente_lista"))
+        self.assertNotContains(response, "Cliente de Jasda")
+
+    def test_contrasenas_no_coinciden(self):
+        self.client.force_login(self.superadmin)
+        response = self.client.post(reverse("administracion:empresa_alta"), {
+            "nombre": "Constructora X", "nit": "", "email": "",
+            "admin_username": "admin_x", "admin_password1": "ClaveSegura456", "admin_password2": "Diferente789",
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(User.objects.filter(username="admin_x").exists())
+
+
 class AislamientoMultiempresaTests(TestCase):
     """Fase 0.4: un usuario de una empresa nunca debe ver ni poder tocar los datos de otra."""
 

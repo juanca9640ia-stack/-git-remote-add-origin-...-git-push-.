@@ -11,7 +11,7 @@ from inventario.models import MovimientoInventario
 from rrhh.models import Nomina
 
 from .forms import (
-    APARTADOS_ROL, CambiarPasswordForm, EmpresaForm, RolForm, UsuarioCrearForm, UsuarioEditarForm,
+    APARTADOS_ROL, CambiarPasswordForm, EmpresaAltaForm, EmpresaForm, RolForm, UsuarioCrearForm, UsuarioEditarForm,
     permisos_de_apartado,
 )
 
@@ -19,11 +19,15 @@ LIMITE_POR_FUENTE = 60
 LIMITE_TOTAL = 150
 
 
+def _es_superadmin_plataforma(request):
+    perfil = getattr(request.user, "perfil", None)
+    return bool(perfil and perfil.es_superadmin_plataforma)
+
+
 @login_required
 def cambiar_empresa(request):
     """Selector de empresa activa, solo para superadministradores de la plataforma."""
-    perfil = getattr(request.user, "perfil", None)
-    if not perfil or not perfil.es_superadmin_plataforma:
+    if not _es_superadmin_plataforma(request):
         messages.error(request, "No tienes permiso para cambiar de empresa.")
         return redirect("dashboard")
 
@@ -36,6 +40,37 @@ def cambiar_empresa(request):
     return render(request, "administracion/cambiar_empresa.html", {
         "empresas": Empresa.objects.filter(activa=True).order_by("nombre"),
     })
+
+
+@login_required
+def empresa_lista(request):
+    """Listado de todas las empresas de la plataforma, solo para su superadministrador."""
+    if not _es_superadmin_plataforma(request):
+        messages.error(request, "No tienes permiso para administrar empresas.")
+        return redirect("dashboard")
+    empresas = Empresa.objects.annotate(total_usuarios=Count("usuarios")).order_by("nombre")
+    return render(request, "administracion/empresa_lista.html", {"empresas": empresas})
+
+
+@login_required
+def empresa_alta(request):
+    """Fase 0.3: da de alta una empresa nueva con su primer usuario administrador."""
+    if not _es_superadmin_plataforma(request):
+        messages.error(request, "No tienes permiso para dar de alta una empresa.")
+        return redirect("dashboard")
+
+    if request.method == "POST":
+        form = EmpresaAltaForm(request.POST)
+        if form.is_valid():
+            empresa, admin = form.guardar()
+            messages.success(
+                request,
+                f"Empresa '{empresa.nombre}' creada, con '{admin.username}' como su primer administrador.",
+            )
+            return redirect("administracion:empresa_lista")
+    else:
+        form = EmpresaAltaForm()
+    return render(request, "administracion/empresa_alta.html", {"form": form})
 
 
 @staff_member_required(login_url="login")

@@ -4,7 +4,7 @@ from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from django.db.models import Q
 
-from core.models import Empresa
+from core.models import Empresa, PerfilUsuario
 
 
 LOGO_MAX_BYTES = 2 * 1024 * 1024  # 2 MB
@@ -51,6 +51,63 @@ class UsuarioBaseForm(forms.ModelForm):
                 continue
             css = "form-check-input" if isinstance(field.widget, forms.CheckboxInput) else "form-control"
             field.widget.attrs.setdefault("class", css)
+
+
+class EmpresaAltaForm(forms.Form):
+    """Da de alta una empresa nueva en la plataforma junto con su primer usuario
+    administrador. Solo la usa un superadministrador de plataforma (Fase 0.3)."""
+
+    nombre = forms.CharField(max_length=150, label="Nombre de la empresa")
+    nit = forms.CharField(max_length=30, label="NIT/Documento", required=False)
+    email = forms.EmailField(label="Correo de la empresa", required=False)
+
+    admin_username = forms.CharField(max_length=150, label="Usuario del administrador")
+    admin_password1 = forms.CharField(label="Contraseña", widget=forms.PasswordInput)
+    admin_password2 = forms.CharField(label="Confirmar contraseña", widget=forms.PasswordInput)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for field in self.fields.values():
+            field.widget.attrs.setdefault("class", "form-control")
+
+    def clean_admin_username(self):
+        username = self.cleaned_data["admin_username"].strip()
+        if User.objects.filter(username=username).exists():
+            raise forms.ValidationError("Ya existe un usuario con ese nombre en la plataforma.")
+        return username
+
+    def clean(self):
+        cleaned = super().clean()
+        p1, p2 = cleaned.get("admin_password1"), cleaned.get("admin_password2")
+        if p1 and p2:
+            if p1 != p2:
+                self.add_error("admin_password2", "Las contraseñas no coinciden.")
+            else:
+                temp_user = User(username=cleaned.get("admin_username", ""))
+                try:
+                    validate_password(p1, temp_user)
+                except ValidationError as exc:
+                    self.add_error("admin_password1", exc)
+        return cleaned
+
+    def guardar(self):
+        """Crea la Empresa, su primer usuario administrador (staff, grupo
+        Administración compartido) y el perfil que los vincula."""
+        empresa = Empresa.objects.create(
+            nombre=self.cleaned_data["nombre"],
+            nit=self.cleaned_data.get("nit", ""),
+            email=self.cleaned_data.get("email", ""),
+        )
+        admin = User.objects.create_user(
+            username=self.cleaned_data["admin_username"],
+            password=self.cleaned_data["admin_password1"],
+            is_staff=True,
+        )
+        PerfilUsuario.objects.create(usuario=admin, empresa=empresa, es_superadmin_plataforma=False)
+        grupo_admin = Group.objects.filter(name="Administración").first()
+        if grupo_admin:
+            admin.groups.add(grupo_admin)
+        return empresa, admin
 
 
 class UsuarioCrearForm(UsuarioBaseForm):

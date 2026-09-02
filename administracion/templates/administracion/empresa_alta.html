@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Nueva empresa{% endblock %}
+{% block content %}
+<h2 class="mb-4">Nueva empresa</h2>
+<div class="card card-kpi p-4" style="max-width:560px;">
+    <form method="post">
+        {% csrf_token %}
+        <h6 class="text-muted text-uppercase small mb-3">Datos de la empresa</h6>
+        <div class="row g-3 mb-3">
+            <div class="col-12">
+                <label class="form-label">Nombre</label>
+                {{ form.nombre }}
+                {% if form.nombre.errors %}<div class="text-danger small">{{ form.nombre.errors|join:" " }}</div>{% endif %}
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">NIT/Documento</label>
+                {{ form.nit }}
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Correo</label>
+                {{ form.email }}
+            </div>
+        </div>
+
+        <hr>
+        <h6 class="text-muted text-uppercase small mb-3 mt-3">Primer usuario administrador</h6>
+        <div class="row g-3">
+            <div class="col-12">
+                <label class="form-label">Usuario</label>
+                {{ form.admin_username }}
+                {% if form.admin_username.errors %}<div class="text-danger small">{{ form.admin_username.errors|join:" " }}</div>{% endif %}
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Contraseña</label>
+                {{ form.admin_password1 }}
+                {% if form.admin_password1.errors %}<div class="text-danger small">{{ form.admin_password1.errors|join:" " }}</div>{% endif %}
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Confirmar contraseña</label>
+                {{ form.admin_password2 }}
+                {% if form.admin_password2.errors %}<div class="text-danger small">{{ form.admin_password2.errors|join:" " }}</div>{% endif %}
+            </div>
+        </div>
+
+        <div class="mt-4">
+            <button type="submit" class="btn btn-primary">Crear empresa</button>
+            <a href="{% url 'administracion:empresa_lista' %}" class="btn btn-outline-secondary">Cancelar</a>
+        </div>
+    </form>
+</div>
+{% endblock %}
