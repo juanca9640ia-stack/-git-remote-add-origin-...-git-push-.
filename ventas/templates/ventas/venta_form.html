@@ -19,9 +19,12 @@
                 </div>
             </div>
             <div class="col-md-3">
-                <label class="form-label">IVA (%)</label>
-                {{ form.impuesto_porcentaje }}
-                <small class="text-muted">Tarifa general en Colombia: 19%</small>
+                <label class="form-label">Proyecto (opcional)</label>
+                {{ form.proyecto }}
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">IVA</label>
+                <input type="text" class="form-control" value="19% (fijo)" disabled>
             </div>
             <div class="col-12">
                 <label class="form-label">Notas</label>
@@ -148,7 +151,7 @@ function recalcularTotales() {
         }
         subtotalGeneral += recalcularFila(row);
     });
-    const impuestoPct = parseFloat(document.querySelector('#id_impuesto_porcentaje')?.value || 0);
+    const impuestoPct = 19; // IVA de factura: siempre 19%, fijo.
     const impuesto = subtotalGeneral * impuestoPct / 100;
     document.querySelector('#total-subtotal').textContent = formatoCOP(subtotalGeneral);
     document.querySelector('#total-impuesto').textContent = formatoCOP(impuesto);

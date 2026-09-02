@@ -5,6 +5,7 @@ from . import views
 app_name = "ventas"
 
 urlpatterns = [
+    path("nuevo-documento/", views.elegir_documento, name="elegir_documento"),
     path("clientes/", views.cliente_lista, name="cliente_lista"),
     path("clientes/nuevo/", views.cliente_form, name="cliente_crear"),
     path("clientes/nuevo-rapido/", views.cliente_crear_rapido, name="cliente_crear_rapido"),
@@ -26,6 +27,10 @@ urlpatterns = [
     path("cotizaciones/<int:pk>/aceptar/", views.cotizacion_marcar_aceptada, name="cotizacion_marcar_aceptada"),
     path("cotizaciones/<int:pk>/rechazar/", views.cotizacion_marcar_rechazada, name="cotizacion_marcar_rechazada"),
     path("cotizaciones/<int:pk>/convertir/", views.cotizacion_convertir_venta, name="cotizacion_convertir_venta"),
+    path(
+        "cotizaciones/<int:pk>/convertir-proyecto/",
+        views.cotizacion_convertir_proyecto, name="cotizacion_convertir_proyecto",
+    ),
     path("cotizaciones/<int:pk>/imprimir/", views.cotizacion_imprimir, name="cotizacion_imprimir"),
     path("cuentas-cobro/", views.cuenta_cobro_lista, name="cuenta_cobro_lista"),
     path("cuentas-cobro/nueva/", views.cuenta_cobro_form, name="cuenta_cobro_crear"),

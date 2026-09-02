@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Nuevo documento{% endblock %}
+{% block content %}
+<h2 class="mb-1">¿Qué documento deseas generar?</h2>
+<p class="text-muted mb-4">
+    {% if cliente %}Para {{ cliente.nombre }}.{% else %}Elige el tipo de documento antes de continuar.{% endif %}
+</p>
+
+<div class="row g-3" style="max-width:720px;">
+    <div class="col-md-6">
+        <a href="{{ url_factura }}" class="card card-kpi p-4 h-100 text-decoration-none text-reset sap-doc-opcion">
+            <div class="sap-doc-opcion-icono bg-primary"><i class="bi bi-receipt"></i></div>
+            <h4 class="mt-3 mb-2">Factura</h4>
+            <p class="text-muted mb-0">
+                A nombre de la empresa, con IVA del 19% fijo. Descuenta inventario y genera
+                automáticamente la cuenta por cobrar.
+            </p>
+        </a>
+    </div>
+    <div class="col-md-6">
+        <a href="{{ url_cuenta_cobro }}" class="card card-kpi p-4 h-100 text-decoration-none text-reset sap-doc-opcion">
+            <div class="sap-doc-opcion-icono bg-info"><i class="bi bi-file-earmark-ruled"></i></div>
+            <h4 class="mt-3 mb-2">Cuenta de cobro</h4>
+            <p class="text-muted mb-0">
+                A nombre de la empresa o de una persona natural. No descuenta inventario;
+                ideal para servicios o contratistas que no requieren factura.
+            </p>
+        </a>
+    </div>
+</div>
+{% endblock %}

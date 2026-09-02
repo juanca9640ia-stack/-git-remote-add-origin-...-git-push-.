@@ -7,6 +7,7 @@ from django.db import transaction
 from django.db.models import Q, Sum
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
@@ -134,6 +135,30 @@ def venta_detalle(request, pk):
 
 
 @login_required
+def elegir_documento(request):
+    """Punto de entrada único para generar un documento de cobro: el sistema
+    siempre pregunta primero qué tipo de documento se necesita, en vez de
+    asumirlo. Se llega aquí desde una cotización, un proyecto, un cliente o
+    directamente desde el menú de facturación."""
+    cliente_id = request.GET.get("cliente", "")
+    proyecto_id = request.GET.get("proyecto", "")
+    cliente = Cliente.objects.filter(pk=cliente_id, empresa=request.empresa).first() if cliente_id else None
+
+    parametros = ""
+    if cliente_id:
+        parametros += f"&cliente={cliente_id}"
+    if proyecto_id:
+        parametros += f"&proyecto={proyecto_id}"
+    parametros = "?" + parametros[1:] if parametros else ""
+
+    return render(request, "ventas/elegir_documento.html", {
+        "cliente": cliente,
+        "url_factura": reverse("ventas:venta_crear") + parametros,
+        "url_cuenta_cobro": reverse("ventas:cuenta_cobro_crear") + parametros,
+    })
+
+
+@login_required
 @transaction.atomic
 def venta_crear(request):
     if request.method == "POST":
@@ -143,13 +168,19 @@ def venta_crear(request):
             venta = form.save(commit=False)
             venta.empresa = request.empresa
             venta.vendedor = request.user
+            venta.impuesto_porcentaje = Decimal("19")  # IVA de factura: siempre 19%, fijo.
             venta.save()
             formset.instance = venta
             formset.save()
             messages.success(request, f"Venta {venta.numero} creada como borrador. Confírmala para descontar inventario.")
             return redirect("ventas:venta_detalle", pk=venta.pk)
     else:
-        form = VentaForm(empresa=request.empresa)
+        initial = {}
+        if request.GET.get("cliente"):
+            initial["cliente"] = request.GET["cliente"]
+        if request.GET.get("proyecto"):
+            initial["proyecto"] = request.GET["proyecto"]
+        form = VentaForm(empresa=request.empresa, initial=initial)
         formset = LineaVentaFormSet(form_kwargs={"empresa": request.empresa})
     return render(request, "ventas/venta_form.html", {
         "form": form, "formset": formset, "venta": None,
@@ -385,8 +416,21 @@ def cotizacion_convertir_venta(request, pk):
     if request.method == "POST":
         try:
             venta = cotizacion.convertir_a_venta(usuario=request.user)
-            messages.success(request, f"Cotización {cotizacion.numero} convertida en la venta {venta.numero}.")
+            messages.success(request, f"Cotización {cotizacion.numero} convertida en la factura {venta.numero}.")
             return redirect("ventas:venta_detalle", pk=venta.pk)
+        except ValidationError as exc:
+            messages.error(request, "; ".join(exc.messages))
+    return redirect("ventas:cotizacion_detalle", pk=cotizacion.pk)
+
+
+@login_required
+def cotizacion_convertir_proyecto(request, pk):
+    cotizacion = get_object_or_404(Cotizacion, pk=pk, empresa=request.empresa)
+    if request.method == "POST":
+        try:
+            proyecto = cotizacion.convertir_a_proyecto(usuario=request.user)
+            messages.success(request, f"Cotización {cotizacion.numero} convertida en el proyecto {proyecto.numero}.")
+            return redirect("proyectos:proyecto_detalle", pk=proyecto.pk)
         except ValidationError as exc:
             messages.error(request, "; ".join(exc.messages))
     return redirect("ventas:cotizacion_detalle", pk=cotizacion.pk)
@@ -427,6 +471,13 @@ def cuenta_cobro_form(request, pk=None):
         messages.error(request, "Esta cuenta de cobro ya no se puede editar.")
         return redirect("ventas:cuenta_cobro_detalle", pk=cuenta.pk)
 
+    # Al venir de "Generar cuenta de cobro" desde una cotización, se copian sus datos
+    # en lugar de pedirlos de nuevo.
+    cotizacion_origen = None
+    cotizacion_id = request.GET.get("cotizacion")
+    if cotizacion_id and not cuenta:
+        cotizacion_origen = Cotizacion.objects.filter(pk=cotizacion_id, empresa=request.empresa).first()
+
     if request.method == "POST":
         form = CuentaCobroForm(request.POST, instance=cuenta, empresa=request.empresa)
         if form.is_valid():
@@ -434,12 +485,24 @@ def cuenta_cobro_form(request, pk=None):
             if not cuenta:
                 obj.empresa = request.empresa
                 obj.creado_por = request.user
+                if cotizacion_origen:
+                    obj.cotizacion = cotizacion_origen
             obj.save()
             messages.success(request, f"Cuenta de cobro '{obj.numero}' guardada correctamente.")
             return redirect("ventas:cuenta_cobro_detalle", pk=obj.pk)
     else:
-        form = CuentaCobroForm(instance=cuenta, empresa=request.empresa)
-    return render(request, "ventas/cuenta_cobro_form.html", {"form": form, "cuenta": cuenta})
+        initial = {}
+        if cotizacion_origen:
+            initial = {
+                "cliente": cotizacion_origen.cliente_id, "proyecto": cotizacion_origen.proyecto_id,
+                "concepto": f"Según cotización {cotizacion_origen.numero}.", "valor": cotizacion_origen.total,
+            }
+        elif request.GET.get("cliente") or request.GET.get("proyecto"):
+            initial = {"cliente": request.GET.get("cliente"), "proyecto": request.GET.get("proyecto")}
+        form = CuentaCobroForm(instance=cuenta, empresa=request.empresa, initial=initial)
+    return render(request, "ventas/cuenta_cobro_form.html", {
+        "form": form, "cuenta": cuenta, "cotizacion_origen": cotizacion_origen,
+    })
 
 
 @login_required

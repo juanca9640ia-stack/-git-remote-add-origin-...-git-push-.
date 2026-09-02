@@ -6,8 +6,9 @@ from django.test import TestCase
 from django.urls import reverse
 
 from core.models import Empresa, PerfilUsuario
+from inventario.models import Categoria, Producto
 from rrhh.models import Empleado
-from ventas.models import Cliente
+from ventas.models import Cliente, CuentaCobro, LineaVenta, Venta
 
 from .models import AsignacionEmpleado, GastoProyecto, HitoProyecto, Proyecto
 
@@ -58,6 +59,43 @@ class ProyectoModelTests(TestCase):
     def test_proyecto_sin_hitos_tiene_avance_cero(self):
         proyecto = Proyecto.objects.create(nombre="Edificio Sin Hitos")
         self.assertEqual(proyecto.porcentaje_avance, 0)
+
+    def test_ingresos_suma_ventas_confirmadas_y_cuentas_cobro_pagadas_vinculadas(self):
+        categoria = Categoria.objects.create(nombre="General")
+        producto = Producto.objects.create(
+            sku="SKU-1", nombre="Material", categoria=categoria,
+            precio_costo=Decimal("5"), precio_venta=Decimal("100000"), stock_actual=50,
+        )
+        proyecto = Proyecto.objects.create(nombre="Edificio Norte", presupuesto=Decimal("500000"))
+
+        venta = Venta.objects.create(cliente=self.cliente, proyecto=proyecto, impuesto_porcentaje=Decimal("0"))
+        LineaVenta.objects.create(venta=venta, producto=producto, cantidad=1, precio_unitario=Decimal("100000"))
+        venta.confirmar()  # confirmada -> cuenta
+
+        # una venta en borrador NO debe contar como ingreso todavía
+        venta_borrador = Venta.objects.create(cliente=self.cliente, proyecto=proyecto)
+        LineaVenta.objects.create(venta=venta_borrador, producto=producto, cantidad=1, precio_unitario=Decimal("50000"))
+
+        cc_pagada = CuentaCobro.objects.create(
+            cliente=self.cliente, proyecto=proyecto, concepto="Anticipo", valor=Decimal("200000"),
+        )
+        cc_pagada.emitir()
+        cc_pagada.marcar_pagada()
+
+        # una cuenta de cobro sin pagar tampoco cuenta
+        CuentaCobro.objects.create(
+            cliente=self.cliente, proyecto=proyecto, concepto="Otra", valor=Decimal("999999"),
+        )
+
+        self.assertEqual(proyecto.ingresos, Decimal("300000"))
+
+    def test_utilidad_y_margen_se_calculan_desde_ingresos_y_gastado(self):
+        proyecto = Proyecto.objects.create(nombre="Edificio Norte")
+        GastoProyecto.objects.create(proyecto=proyecto, concepto="Materiales", valor=Decimal("60000"))
+        # Sin ventas/cuentas de cobro pagadas todavía: sin ingresos.
+        self.assertEqual(proyecto.ingresos, Decimal("0"))
+        self.assertIsNone(proyecto.margen_utilidad)
+        self.assertEqual(proyecto.utilidad, Decimal("-60000"))
 
     def test_hito_vencido_solo_si_no_esta_completado_y_paso_la_fecha(self):
         from datetime import timedelta

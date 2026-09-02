@@ -59,8 +59,20 @@
 
 {% if cotizacion.venta %}
 <div class="alert alert-success mt-3">
-    Esta cotización ya fue convertida en la venta
+    Esta cotización ya generó la factura
     <a href="{% url 'ventas:venta_detalle' cotizacion.venta.pk %}">{{ cotizacion.venta.numero }}</a>.
+</div>
+{% endif %}
+{% if cotizacion.proyecto %}
+<div class="alert alert-success mt-3">
+    Esta cotización ya se convirtió en el proyecto
+    <a href="{% url 'proyectos:proyecto_detalle' cotizacion.proyecto.pk %}">{{ cotizacion.proyecto.nombre }}</a>.
+</div>
+{% endif %}
+{% if cotizacion.cuentas_cobro.exists %}
+<div class="alert alert-success mt-3">
+    Ya se generaron {{ cotizacion.cuentas_cobro.count }} cuenta{{ cotizacion.cuentas_cobro.count|pluralize }} de cobro desde esta cotización.
+    <a href="{% url 'ventas:cuenta_cobro_lista' %}">Ver cuentas de cobro</a>
 </div>
 {% endif %}
 
@@ -92,10 +104,21 @@
         </form>
     {% endif %}
     {% if not cotizacion.venta and cotizacion.estado != "rechazada" %}
-        <form method="post" action="{% url 'ventas:cotizacion_convertir_venta' cotizacion.pk %}" onsubmit="return confirm('¿Convertir esta cotización en una venta en borrador?');">
+        <form method="post" action="{% url 'ventas:cotizacion_convertir_venta' cotizacion.pk %}" onsubmit="return confirm('¿Generar la factura a nombre de la empresa, con IVA del 19%?');">
             {% csrf_token %}
-            <button type="submit" class="btn btn-primary"><i class="bi bi-arrow-right-circle me-1"></i>Convertir en venta</button>
+            <button type="submit" class="btn btn-primary"><i class="bi bi-receipt me-1"></i>Generar factura</button>
         </form>
+    {% endif %}
+    {% if cotizacion.estado == "aceptada" %}
+        {% if not cotizacion.proyecto %}
+            <form method="post" action="{% url 'ventas:cotizacion_convertir_proyecto' cotizacion.pk %}" onsubmit="return confirm('¿Convertir esta cotización en un proyecto de obra?');">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-outline-primary"><i class="bi bi-buildings me-1"></i>Convertir en proyecto</button>
+            </form>
+        {% endif %}
+        <a href="{% url 'ventas:cuenta_cobro_crear' %}?cotizacion={{ cotizacion.pk }}" class="btn btn-outline-primary">
+            <i class="bi bi-file-earmark-ruled me-1"></i>Generar cuenta de cobro
+        </a>
     {% endif %}
     <a href="{% url 'ventas:cotizacion_lista' %}" class="btn btn-outline-secondary">Volver</a>
 </div>

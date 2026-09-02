@@ -56,7 +56,7 @@
 
 <div class="sap-quick-actions mb-4">
     {% if perms.ventas %}
-        <a href="{% url 'ventas:venta_crear' %}" class="sap-quick-action"><i class="bi bi-receipt"></i>Nueva venta</a>
+        <a href="{% url 'ventas:elegir_documento' %}" class="sap-quick-action"><i class="bi bi-file-earmark-plus"></i>Nuevo documento</a>
         <a href="{% url 'ventas:cotizacion_crear' %}" class="sap-quick-action"><i class="bi bi-file-earmark-text"></i>Nueva cotización</a>
         <a href="{% url 'ventas:cliente_crear' %}" class="sap-quick-action"><i class="bi bi-person-plus"></i>Nuevo cliente</a>
     {% endif %}

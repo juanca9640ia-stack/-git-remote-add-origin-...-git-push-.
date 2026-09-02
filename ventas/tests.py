@@ -279,6 +279,29 @@ class CotizacionTests(TestCase):
         with self.assertRaises(ValidationError):
             cotizacion.convertir_a_venta()
 
+    def test_convertir_a_venta_fija_iva_en_19_sin_importar_el_de_la_cotizacion(self):
+        cotizacion = Cotizacion.objects.create(cliente=self.cliente, impuesto_porcentaje=Decimal("5"))
+        LineaCotizacion.objects.create(
+            cotizacion=cotizacion, producto=self.producto, cantidad=1, precio_unitario=self.producto.precio_venta,
+        )
+        venta = cotizacion.convertir_a_venta()
+        self.assertEqual(venta.impuesto_porcentaje, Decimal("19"))
+
+    def test_convertir_a_proyecto_crea_obra_con_el_cliente_y_el_total_cotizado(self):
+        cotizacion = self._crear_cotizacion_borrador(cantidad=2)
+        proyecto = cotizacion.convertir_a_proyecto()
+
+        self.assertEqual(proyecto.cliente, self.cliente)
+        self.assertEqual(proyecto.presupuesto, cotizacion.total)
+        cotizacion.refresh_from_db()
+        self.assertEqual(cotizacion.proyecto, proyecto)
+
+    def test_no_permite_convertir_a_proyecto_dos_veces(self):
+        cotizacion = self._crear_cotizacion_borrador()
+        cotizacion.convertir_a_proyecto()
+        with self.assertRaises(ValidationError):
+            cotizacion.convertir_a_proyecto()
+
     def test_vencida_solo_si_paso_la_fecha_y_sigue_pendiente(self):
         cotizacion = self._crear_cotizacion_borrador()
         cotizacion.fecha_validez = timezone.localdate() - timezone.timedelta(days=1)
@@ -442,3 +465,70 @@ class CuentaCobroVistaTests(TestCase):
         cuenta.emitir()
         resp = self.client.get(f"/ventas/cuentas-cobro/{cuenta.pk}/imprimir/")
         self.assertContains(resp, "CIENTO CINCUENTA MIL PESOS M/CTE")
+
+
+class FlujoIntegracionDocumentosTests(TestCase):
+    """Fase de integración: elegir tipo de documento, y cotización -> proyecto /
+    factura / cuenta de cobro sin volver a pedir la información."""
+
+    def setUp(self):
+        self.user = User.objects.create_superuser(username="gerente", password="clave-segura-123", email="")
+        self.client.force_login(self.user)
+        categoria = Categoria.objects.create(nombre="General")
+        self.producto = Producto.objects.create(
+            sku="SKU-1", nombre="Producto de prueba", categoria=categoria,
+            precio_costo=Decimal("5.00"), precio_venta=Decimal("100000.00"), stock_actual=10,
+        )
+        self.cliente = Cliente.objects.create(nombre="Cliente de prueba")
+        self.cotizacion = Cotizacion.objects.create(cliente=self.cliente, impuesto_porcentaje=Decimal("19"))
+        LineaCotizacion.objects.create(
+            cotizacion=self.cotizacion, producto=self.producto, cantidad=2, precio_unitario=Decimal("100000.00"),
+        )
+        self.cotizacion.marcar_enviada()
+        self.cotizacion.marcar_aceptada(firmado_por="Cliente de prueba")
+
+    def test_elegir_documento_ofrece_las_dos_rutas(self):
+        resp = self.client.get(f"/ventas/nuevo-documento/?cliente={self.cliente.pk}")
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "Factura")
+        self.assertContains(resp, "Cuenta de cobro")
+        self.assertContains(resp, f"/ventas/ventas/nueva/?cliente={self.cliente.pk}")
+        self.assertContains(resp, f"/ventas/cuentas-cobro/nueva/?cliente={self.cliente.pk}")
+
+    def test_venta_form_no_permite_editar_el_iva(self):
+        resp = self.client.get("/ventas/ventas/nueva/")
+        self.assertNotContains(resp, 'name="impuesto_porcentaje"')
+
+    def test_venta_creada_desde_formulario_queda_en_19_por_ciento(self):
+        resp = self.client.post("/ventas/ventas/nueva/", {
+            "cliente": self.cliente.pk,
+            "lineas-TOTAL_FORMS": "1", "lineas-INITIAL_FORMS": "0",
+            "lineas-MIN_NUM_FORMS": "0", "lineas-MAX_NUM_FORMS": "1000",
+            "lineas-0-producto": self.producto.pk, "lineas-0-cantidad": "1",
+            "lineas-0-precio_unitario": "100000.00",
+        })
+        venta = Venta.objects.get(cliente=self.cliente)
+        self.assertRedirects(resp, f"/ventas/ventas/{venta.pk}/")
+        self.assertEqual(venta.impuesto_porcentaje, Decimal("19"))
+
+    def test_convertir_cotizacion_en_proyecto_desde_la_vista(self):
+        resp = self.client.post(f"/ventas/cotizaciones/{self.cotizacion.pk}/convertir-proyecto/")
+        self.cotizacion.refresh_from_db()
+        self.assertRedirects(resp, f"/proyectos/{self.cotizacion.proyecto.pk}/")
+        self.assertEqual(self.cotizacion.proyecto.cliente, self.cliente)
+
+    def test_generar_cuenta_de_cobro_desde_cotizacion_prellena_los_datos(self):
+        resp = self.client.get(f"/ventas/cuentas-cobro/nueva/?cotizacion={self.cotizacion.pk}")
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.context["form"].initial["cliente"], self.cliente.pk)
+        self.assertEqual(resp.context["form"].initial["valor"], self.cotizacion.total)
+
+    def test_cuenta_de_cobro_generada_desde_cotizacion_queda_vinculada(self):
+        resp = self.client.post(f"/ventas/cuentas-cobro/nueva/?cotizacion={self.cotizacion.pk}", {
+            "cliente": self.cliente.pk, "emisor_tipo": "empresa",
+            "concepto": f"Según cotización {self.cotizacion.numero}.", "valor": str(self.cotizacion.total),
+            "fecha": "2026-09-01",
+        })
+        cuenta = CuentaCobro.objects.get(cliente=self.cliente)
+        self.assertRedirects(resp, f"/ventas/cuentas-cobro/{cuenta.pk}/")
+        self.assertEqual(cuenta.cotizacion_id, self.cotizacion.pk)

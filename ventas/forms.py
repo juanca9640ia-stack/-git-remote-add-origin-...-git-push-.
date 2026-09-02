@@ -2,6 +2,7 @@ from django import forms
 from django.forms import inlineformset_factory
 
 from inventario.models import Producto
+from proyectos.models import Proyecto
 
 from .models import Cliente, Cotizacion, CuentaCobro, LineaCotizacion, LineaVenta, Venta
 
@@ -32,15 +33,19 @@ class ClienteRapidoForm(forms.ModelForm):
 class VentaForm(forms.ModelForm):
     class Meta:
         model = Venta
-        fields = ["cliente", "impuesto_porcentaje", "notas"]
+        # El IVA de toda factura es 19% fijo: no se expone en el formulario normal
+        # (solo un administrador podría cambiarlo desde /admin/, si alguna vez hace falta).
+        fields = ["cliente", "proyecto", "notas"]
         widgets = {
             "notas": forms.Textarea(attrs={"rows": 2}),
         }
 
     def __init__(self, *args, empresa=None, **kwargs):
         super().__init__(*args, **kwargs)
+        self.fields["proyecto"].required = False
         if empresa is not None:
             self.fields["cliente"].queryset = Cliente.objects.filter(empresa=empresa)
+            self.fields["proyecto"].queryset = Proyecto.objects.filter(empresa=empresa).order_by("-creado_en")
         for field in self.fields.values():
             field.widget.attrs.setdefault("class", "form-control")
 
@@ -112,7 +117,7 @@ class CuentaCobroForm(forms.ModelForm):
     class Meta:
         model = CuentaCobro
         fields = [
-            "cliente", "venta", "emisor_tipo", "emisor_nombre", "emisor_documento",
+            "cliente", "proyecto", "venta", "emisor_tipo", "emisor_nombre", "emisor_documento",
             "concepto", "valor", "fecha", "forma_pago", "datos_pago",
         ]
         widgets = {
@@ -123,13 +128,18 @@ class CuentaCobroForm(forms.ModelForm):
     def __init__(self, *args, empresa=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["venta"].required = False
+        self.fields["proyecto"].required = False
         ventas_confirmadas = Venta.objects.filter(estado=Venta.CONFIRMADA)
+        proyectos = Proyecto.objects.all()
         if empresa is not None:
             self.fields["cliente"].queryset = Cliente.objects.filter(empresa=empresa)
             ventas_confirmadas = ventas_confirmadas.filter(empresa=empresa)
+            proyectos = proyectos.filter(empresa=empresa)
         self.fields["venta"].queryset = ventas_confirmadas.order_by("-creado_en")
+        self.fields["proyecto"].queryset = proyectos.order_by("-creado_en")
         for field in self.fields.values():
-            field.widget.attrs.setdefault("class", "form-control")
+            css = "form-check-input" if isinstance(field.widget, forms.CheckboxInput) else "form-control"
+            field.widget.attrs.setdefault("class", css)
 
     def clean(self):
         cleaned = super().clean()

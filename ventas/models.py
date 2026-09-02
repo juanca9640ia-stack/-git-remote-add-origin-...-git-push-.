@@ -53,10 +53,14 @@ class Venta(models.Model):
     )
     numero = models.CharField(max_length=20, blank=True)
     cliente = models.ForeignKey(Cliente, on_delete=models.PROTECT, related_name="ventas")
+    proyecto = models.ForeignKey(
+        "proyectos.Proyecto", on_delete=models.SET_NULL, null=True, blank=True, related_name="ventas",
+        help_text="Opcional: si esta venta/factura corresponde a una obra.",
+    )
     estado = models.CharField(max_length=12, choices=ESTADO_CHOICES, default=BORRADOR)
     impuesto_porcentaje = models.DecimalField(
         "IVA (%)", max_digits=5, decimal_places=2, default=Decimal("19"),
-        help_text="Tarifa general de IVA en Colombia: 19%.",
+        help_text="Tarifa general de IVA en Colombia: 19%. Fija para facturas; solo el administrador puede cambiarla desde /admin/.",
     )
     vendedor = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="ventas"
@@ -266,6 +270,9 @@ class Cotizacion(models.Model):
     venta = models.OneToOneField(
         Venta, on_delete=models.SET_NULL, null=True, blank=True, related_name="cotizacion_origen"
     )
+    proyecto = models.OneToOneField(
+        "proyectos.Proyecto", on_delete=models.SET_NULL, null=True, blank=True, related_name="cotizacion_origen",
+    )
 
     class Meta:
         verbose_name = "Cotización"
@@ -335,14 +342,17 @@ class Cotizacion(models.Model):
 
     @transaction.atomic
     def convertir_a_venta(self, usuario=None):
-        """Crea una venta en borrador con las mismas líneas, lista para confirmar."""
+        """Genera la factura (Venta) a nombre de la empresa, con las mismas líneas de
+        la cotización, lista para confirmar. El IVA de toda factura es siempre del 19%
+        (fijo), sin importar el IVA con el que se haya cotizado."""
         if self.venta_id:
             raise ValidationError("Esta cotización ya fue convertida en una venta.")
         if not self.lineas.exists():
             raise ValidationError("La cotización no tiene líneas.")
 
         venta = Venta.objects.create(
-            empresa=self.empresa, cliente=self.cliente, impuesto_porcentaje=self.impuesto_porcentaje,
+            empresa=self.empresa, cliente=self.cliente, proyecto=self.proyecto,
+            impuesto_porcentaje=Decimal("19"),
             vendedor=usuario, notas=f"Generada desde la cotización {self.numero}.",
         )
         for linea in self.lineas.select_related("producto"):
@@ -353,6 +363,25 @@ class Cotizacion(models.Model):
         self.venta = venta
         self.save(update_fields=["venta"])
         return venta
+
+    @transaction.atomic
+    def convertir_a_proyecto(self, usuario=None):
+        """Crea una obra (Proyecto) a partir de una cotización aceptada: mismo cliente
+        y el total cotizado como presupuesto inicial. No vuelve a pedir información
+        que la cotización ya tiene."""
+        from proyectos.models import Proyecto
+
+        if self.proyecto_id:
+            raise ValidationError("Esta cotización ya fue convertida en un proyecto.")
+
+        proyecto = Proyecto.objects.create(
+            empresa=self.empresa, nombre=f"Obra para {self.cliente}", cliente=self.cliente,
+            presupuesto=self.total, responsable=usuario,
+            descripcion=f"Creado automáticamente desde la cotización {self.numero}.",
+        )
+        self.proyecto = proyecto
+        self.save(update_fields=["proyecto"])
+        return proyecto
 
 
 class LineaCotizacion(models.Model):
@@ -417,6 +446,14 @@ class CuentaCobro(models.Model):
     venta = models.ForeignKey(
         Venta, on_delete=models.SET_NULL, null=True, blank=True, related_name="cuentas_cobro",
         help_text="Opcional: si esta cuenta de cobro corresponde a una venta ya registrada.",
+    )
+    cotizacion = models.ForeignKey(
+        "Cotizacion", on_delete=models.SET_NULL, null=True, blank=True, related_name="cuentas_cobro",
+        help_text="Opcional: si esta cuenta de cobro se generó desde una cotización.",
+    )
+    proyecto = models.ForeignKey(
+        "proyectos.Proyecto", on_delete=models.SET_NULL, null=True, blank=True, related_name="cuentas_cobro",
+        help_text="Opcional: si esta cuenta de cobro corresponde a una obra.",
     )
     emisor_tipo = models.CharField(max_length=16, choices=EMISOR_CHOICES, default=EMPRESA)
     emisor_nombre = models.CharField(

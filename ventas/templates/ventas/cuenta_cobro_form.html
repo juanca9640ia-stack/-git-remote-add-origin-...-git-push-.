@@ -2,14 +2,25 @@
 {% block title %}{% if cuenta %}Editar cuenta de cobro{% else %}Nueva cuenta de cobro{% endif %}{% endblock %}
 {% block content %}
 <h2 class="mb-4">{% if cuenta %}Editar cuenta de cobro{% else %}Nueva cuenta de cobro{% endif %}</h2>
+{% if cotizacion_origen %}
+<div class="alert alert-info" style="max-width:680px;">
+    <i class="bi bi-info-circle me-1"></i>Generando desde la cotización
+    <a href="{% url 'ventas:cotizacion_detalle' cotizacion_origen.pk %}">{{ cotizacion_origen.numero }}</a> —
+    cliente, proyecto, concepto y valor ya vienen copiados; solo revísalos y ajusta lo que haga falta.
+</div>
+{% endif %}
 <div class="card card-kpi p-4" style="max-width:680px;">
-    <form method="post">
+    <form method="post" action="{% if cotizacion_origen %}?cotizacion={{ cotizacion_origen.pk }}{% endif %}">
         {% csrf_token %}
         <div class="row g-3">
             <div class="col-md-6">
                 <label class="form-label">Cliente</label>
                 {{ form.cliente }}
                 {% if form.cliente.errors %}<div class="text-danger small">{{ form.cliente.errors|join:" " }}</div>{% endif %}
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Proyecto (opcional)</label>
+                {{ form.proyecto }}
             </div>
             <div class="col-md-6">
                 <label class="form-label">Venta relacionada (opcional)</label>

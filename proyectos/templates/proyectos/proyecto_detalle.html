@@ -51,6 +51,30 @@
     </div>
 </div>
 
+<div class="row g-3 mb-4">
+    <div class="col-md-4">
+        <div class="card card-kpi p-3">
+            <small class="text-muted text-uppercase">Ingresos</small>
+            <div class="fs-4 fw-bold">{{ proyecto.ingresos|cop }}</div>
+            <small class="text-muted">Facturado y cobrado a la obra</small>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card card-kpi p-3 {% if proyecto.utilidad < 0 %}border-danger{% endif %}">
+            <small class="text-muted text-uppercase">Utilidad</small>
+            <div class="fs-4 fw-bold {% if proyecto.utilidad < 0 %}text-danger{% endif %}">{{ proyecto.utilidad|cop }}</div>
+            <small class="text-muted">Ingresos − gastado</small>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card card-kpi p-3">
+            <small class="text-muted text-uppercase">Margen</small>
+            <div class="fs-4 fw-bold">{% if proyecto.margen_utilidad != None %}{{ proyecto.margen_utilidad }}%{% else %}—{% endif %}</div>
+            <small class="text-muted">{% if proyecto.margen_utilidad == None %}Aún sin ingresos registrados{% else %}Utilidad / ingresos{% endif %}</small>
+        </div>
+    </div>
+</div>
+
 {% if proyecto.descripcion %}
 <div class="card card-kpi p-3 mb-4">
     <small class="text-muted text-uppercase mb-1">Alcance</small>
@@ -176,6 +200,50 @@
                         </tr>
                     {% empty %}
                         <tr><td colspan="5" class="text-center text-muted py-4">Sin gastos registrados</td></tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="card card-kpi mt-3">
+            <div class="card-header bg-white fw-bold d-flex justify-content-between align-items-center">
+                Facturación de la obra
+                <div class="d-flex gap-2">
+                    <a href="{% url 'ventas:venta_crear' %}?proyecto={{ proyecto.pk }}{% if proyecto.cliente_id %}&cliente={{ proyecto.cliente_id }}{% endif %}" class="btn btn-sm btn-outline-primary"><i class="bi bi-receipt me-1"></i>Factura</a>
+                    <a href="{% url 'ventas:cuenta_cobro_crear' %}?proyecto={{ proyecto.pk }}{% if proyecto.cliente_id %}&cliente={{ proyecto.cliente_id }}{% endif %}" class="btn btn-sm btn-outline-primary"><i class="bi bi-file-earmark-ruled me-1"></i>Cuenta de cobro</a>
+                </div>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead><tr><th>Documento</th><th>Estado</th><th class="text-end">Valor</th></tr></thead>
+                    <tbody>
+                    {% for venta in proyecto.ventas.all %}
+                        <tr onclick="window.location='{% url 'ventas:venta_detalle' venta.pk %}'" style="cursor:pointer">
+                            <td><i class="bi bi-receipt me-1"></i>Factura {{ venta.numero }}</td>
+                            <td>
+                                {% if venta.estado == "confirmada" %}<span class="badge bg-success">Confirmada</span>
+                                {% elif venta.estado == "anulada" %}<span class="badge bg-secondary">Anulada</span>
+                                {% else %}<span class="badge bg-warning text-dark">Borrador</span>{% endif %}
+                            </td>
+                            <td class="text-end">{{ venta.total|cop }}</td>
+                        </tr>
+                    {% endfor %}
+                    {% for cc in proyecto.cuentas_cobro.all %}
+                        <tr onclick="window.location='{% url 'ventas:cuenta_cobro_detalle' cc.pk %}'" style="cursor:pointer">
+                            <td><i class="bi bi-file-earmark-ruled me-1"></i>Cuenta de cobro {{ cc.numero }}</td>
+                            <td>
+                                {% if cc.estado == "pagada" %}<span class="badge bg-success">Pagada</span>
+                                {% elif cc.estado == "emitida" %}<span class="badge bg-info">Emitida</span>
+                                {% elif cc.estado == "anulada" %}<span class="badge bg-secondary">Anulada</span>
+                                {% else %}<span class="badge bg-warning text-dark">Borrador</span>{% endif %}
+                            </td>
+                            <td class="text-end">{{ cc.valor|cop }}</td>
+                        </tr>
+                    {% empty %}
+                        {% if not proyecto.ventas.exists %}
+                            <tr><td colspan="3" class="text-center text-muted py-4">Sin facturas ni cuentas de cobro registradas</td></tr>
+                        {% endif %}
                     {% endfor %}
                     </tbody>
                 </table>

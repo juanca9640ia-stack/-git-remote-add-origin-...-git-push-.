@@ -7,7 +7,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from rrhh.models import Empleado
-from ventas.models import Cliente
+from ventas.models import Cliente, CuentaCobro, Venta
 
 
 class Proyecto(models.Model):
@@ -96,6 +96,29 @@ class Proyecto(models.Model):
     @property
     def sobre_presupuesto(self):
         return bool(self.presupuesto) and self.gastado > self.presupuesto
+
+    @property
+    def ingresos(self):
+        """Lo realmente facturado/cobrado a esta obra: ventas confirmadas + cuentas de
+        cobro pagadas que quedaron vinculadas a ella. No cuenta lo que todavía está
+        solo cotizado o en borrador."""
+        de_ventas = sum(
+            (v.total for v in self.ventas.filter(estado=Venta.CONFIRMADA)), Decimal("0")
+        )
+        de_cuentas_cobro = sum(
+            (c.valor for c in self.cuentas_cobro.filter(estado=CuentaCobro.PAGADA)), Decimal("0")
+        )
+        return de_ventas + de_cuentas_cobro
+
+    @property
+    def utilidad(self):
+        return self.ingresos - self.gastado
+
+    @property
+    def margen_utilidad(self):
+        if not self.ingresos:
+            return None
+        return round(self.utilidad / self.ingresos * 100, 1)
 
     @property
     def total_hitos(self):
