@@ -28,6 +28,37 @@ def _descripciones_producto_json(empresa):
     return {str(p.pk): p.descripcion for p in Producto.objects.filter(activo=True, empresa=empresa)}
 
 
+def _resolver_cotizacion_origen(request):
+    """La cotización desde la que se está generando un documento: viene
+    explícita en ?cotizacion=, o si no, se deduce del proyecto (?proyecto=)
+    cuando esa obra nació de una cotización. Así, al facturar o generar una
+    cuenta de cobro desde un proyecto, se copian sus datos automáticamente
+    sin tener que volver a indicar la cotización."""
+    cotizacion_id = request.GET.get("cotizacion")
+    if cotizacion_id:
+        return Cotizacion.objects.filter(pk=cotizacion_id, empresa=request.empresa).select_related("cliente").first()
+
+    proyecto_id = request.GET.get("proyecto")
+    if proyecto_id:
+        return Cotizacion.objects.filter(
+            proyecto_id=proyecto_id, empresa=request.empresa
+        ).select_related("cliente").first()
+
+    return None
+
+
+def _concepto_desde_cotizacion(cotizacion):
+    """Concepto de cuenta de cobro con las descripciones de cada línea de la
+    cotización, no solo su número."""
+    lineas = [
+        f"- {l.producto.nombre}" + (f": {l.producto.descripcion}" if l.producto.descripcion else "") + f" (cant. {l.cantidad})"
+        for l in cotizacion.lineas.select_related("producto")
+    ]
+    if lineas:
+        return f"Según cotización {cotizacion.numero}:\n" + "\n".join(lineas)
+    return f"Según cotización {cotizacion.numero}."
+
+
 @login_required
 def cliente_lista(request):
     query = request.GET.get("q", "")
@@ -191,13 +222,29 @@ def venta_crear(request):
             messages.success(request, f"Venta {venta.numero} creada como borrador. Confírmala para descontar inventario.")
             return redirect("ventas:venta_detalle", pk=venta.pk)
     else:
+        # Al venir de "Generar factura" desde una cotización o desde un proyecto
+        # que nació de una, se copian cliente, proyecto y líneas (con sus
+        # descripciones) en vez de pedirlos de nuevo.
+        cotizacion_origen = _resolver_cotizacion_origen(request)
+
         initial = {}
+        if cotizacion_origen:
+            initial["cliente"] = cotizacion_origen.cliente_id
+            if cotizacion_origen.proyecto_id:
+                initial["proyecto"] = cotizacion_origen.proyecto_id
         if request.GET.get("cliente"):
             initial["cliente"] = request.GET["cliente"]
         if request.GET.get("proyecto"):
             initial["proyecto"] = request.GET["proyecto"]
         form = VentaForm(empresa=request.empresa, initial=initial)
-        formset = LineaVentaFormSet(form_kwargs={"empresa": request.empresa})
+
+        lineas_iniciales = None
+        if cotizacion_origen:
+            lineas_iniciales = [
+                {"producto": linea.producto_id, "cantidad": linea.cantidad, "precio_unitario": linea.precio_unitario}
+                for linea in cotizacion_origen.lineas.all()
+            ]
+        formset = LineaVentaFormSet(form_kwargs={"empresa": request.empresa}, initial=lineas_iniciales)
     return render(request, "ventas/venta_form.html", {
         "form": form, "formset": formset, "venta": None,
         "precios_producto": _precios_producto_json(request.empresa),
@@ -487,12 +534,9 @@ def cuenta_cobro_form(request, pk=None):
         messages.error(request, "Esta cuenta de cobro ya no se puede editar.")
         return redirect("ventas:cuenta_cobro_detalle", pk=cuenta.pk)
 
-    # Al venir de "Generar cuenta de cobro" desde una cotización, se copian sus datos
-    # en lugar de pedirlos de nuevo.
-    cotizacion_origen = None
-    cotizacion_id = request.GET.get("cotizacion")
-    if cotizacion_id and not cuenta:
-        cotizacion_origen = Cotizacion.objects.filter(pk=cotizacion_id, empresa=request.empresa).first()
+    # Al venir de "Generar cuenta de cobro" desde una cotización o desde un
+    # proyecto que nació de una, se copian sus datos en lugar de pedirlos de nuevo.
+    cotizacion_origen = _resolver_cotizacion_origen(request) if not cuenta else None
 
     if request.method == "POST":
         form = CuentaCobroForm(request.POST, instance=cuenta, empresa=request.empresa)
@@ -511,7 +555,7 @@ def cuenta_cobro_form(request, pk=None):
         if cotizacion_origen:
             initial = {
                 "cliente": cotizacion_origen.cliente_id, "proyecto": cotizacion_origen.proyecto_id,
-                "concepto": f"Según cotización {cotizacion_origen.numero}.", "valor": cotizacion_origen.total,
+                "concepto": _concepto_desde_cotizacion(cotizacion_origen), "valor": cotizacion_origen.total,
             }
         elif request.GET.get("cliente") or request.GET.get("proyecto"):
             initial = {"cliente": request.GET.get("cliente"), "proyecto": request.GET.get("proyecto")}

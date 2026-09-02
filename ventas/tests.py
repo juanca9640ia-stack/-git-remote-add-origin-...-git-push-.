@@ -533,6 +533,32 @@ class FlujoIntegracionDocumentosTests(TestCase):
         self.assertRedirects(resp, f"/ventas/cuentas-cobro/{cuenta.pk}/")
         self.assertEqual(cuenta.cotizacion_id, self.cotizacion.pk)
 
+    def test_generar_factura_desde_proyecto_prellena_lineas_de_la_cotizacion(self):
+        proyecto = self.cotizacion.convertir_a_proyecto()
+        resp = self.client.get(f"/ventas/ventas/nueva/?proyecto={proyecto.pk}&cliente={self.cliente.pk}")
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(int(resp.context["form"].initial["cliente"]), self.cliente.pk)
+        # Las líneas prellenadas viven en initial_extra (así es como Django
+        # alimenta los formularios "extra" de un ModelFormSet sin instancia).
+        lineas = resp.context["formset"].initial_extra
+        self.assertEqual(len(lineas), 1)
+        self.assertEqual(lineas[0]["producto"], self.producto.pk)
+        self.assertEqual(lineas[0]["cantidad"], 2)
+        # Y también deben quedar reflejadas en el primer formulario ya renderizado.
+        self.assertEqual(resp.context["formset"].forms[0].initial["producto"], self.producto.pk)
+
+    def test_generar_cuenta_de_cobro_desde_proyecto_incluye_descripcion_del_producto(self):
+        self.producto.descripcion = "Cemento gris tipo I, bulto de 50kg"
+        self.producto.save(update_fields=["descripcion"])
+        proyecto = self.cotizacion.convertir_a_proyecto()
+
+        resp = self.client.get(f"/ventas/cuentas-cobro/nueva/?proyecto={proyecto.pk}&cliente={self.cliente.pk}")
+        self.assertEqual(resp.status_code, 200)
+        concepto = resp.context["form"].initial["concepto"]
+        self.assertIn(self.producto.nombre, concepto)
+        self.assertIn("Cemento gris tipo I, bulto de 50kg", concepto)
+        self.assertIn(self.cotizacion.numero, concepto)
+
 
 class VentaImprimirTests(TestCase):
     def setUp(self):
