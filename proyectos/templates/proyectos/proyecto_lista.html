@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% load money %}
+{% block title %}Proyectos{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2 class="mb-0">Proyectos de obra</h2>
+    <a href="{% url 'proyectos:proyecto_crear' %}" class="btn btn-primary"><i class="bi bi-plus-lg me-1"></i>Nuevo proyecto</a>
+</div>
+
+<div class="row g-3 mb-3">
+    <div class="col-md-3">
+        <div class="card card-kpi p-3">
+            <small class="text-muted text-uppercase">Proyectos</small>
+            <div class="fs-4 fw-bold">{{ total_proyectos }}</div>
+            <small class="text-muted">{{ en_curso_count }} en curso</small>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card card-kpi p-3">
+            <small class="text-muted text-uppercase">Presupuesto total</small>
+            <div class="fs-4 fw-bold">{{ presupuesto_total|cop }}</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card card-kpi p-3 {% if gastado_total > presupuesto_total %}border-danger{% endif %}">
+            <small class="text-muted text-uppercase">Gastado a la fecha</small>
+            <div class="fs-4 fw-bold {% if gastado_total > presupuesto_total %}text-danger{% endif %}">{{ gastado_total|cop }}</div>
+        </div>
+    </div>
+</div>
+
+<form class="row g-2 mb-3" method="get">
+    <div class="col-auto">
+        <input type="text" name="q" value="{{ query }}" class="form-control" placeholder="Buscar por nombre">
+    </div>
+    <div class="col-auto">
+        <select name="estado" class="form-select" onchange="this.form.submit()">
+            <option value="">Todos los estados</option>
+            <option value="planificacion" {% if estado == "planificacion" %}selected{% endif %}>En planificación</option>
+            <option value="en_curso" {% if estado == "en_curso" %}selected{% endif %}>En curso</option>
+            <option value="pausado" {% if estado == "pausado" %}selected{% endif %}>Pausado</option>
+            <option value="finalizado" {% if estado == "finalizado" %}selected{% endif %}>Finalizado</option>
+            <option value="cancelado" {% if estado == "cancelado" %}selected{% endif %}>Cancelado</option>
+        </select>
+    </div>
+    <div class="col-auto">
+        <button class="btn btn-outline-secondary" type="submit">Buscar</button>
+    </div>
+</form>
+
+<div class="card card-kpi">
+    <div class="table-responsive">
+        <table class="table table-hover mb-0 align-middle">
+            <thead><tr><th>#</th><th>Nombre</th><th>Cliente</th><th>Estado</th><th>Avance</th><th class="text-end">Presupuesto</th><th class="text-end">Gastado</th></tr></thead>
+            <tbody>
+            {% for proyecto in proyectos %}
+                <tr onclick="window.location='{% url 'proyectos:proyecto_detalle' proyecto.pk %}'" style="cursor:pointer">
+                    <td>{{ proyecto.numero }}</td>
+                    <td>{{ proyecto.nombre }}</td>
+                    <td>{{ proyecto.cliente|default:"—" }}</td>
+                    <td>
+                        {% if proyecto.estado == "en_curso" %}<span class="badge bg-info">En curso</span>
+                        {% elif proyecto.estado == "finalizado" %}<span class="badge bg-success">Finalizado</span>
+                        {% elif proyecto.estado == "pausado" %}<span class="badge bg-warning text-dark">Pausado</span>
+                        {% elif proyecto.estado == "cancelado" %}<span class="badge bg-secondary">Cancelado</span>
+                        {% else %}<span class="badge bg-light text-dark border">En planificación</span>{% endif %}
+                    </td>
+                    <td style="min-width:110px;">
+                        <div class="progress" style="height:6px;">
+                            <div class="progress-bar bg-success" style="width:{{ proyecto.porcentaje_avance }}%;"></div>
+                        </div>
+                        <small class="text-muted">{{ proyecto.porcentaje_avance }}%</small>
+                    </td>
+                    <td class="text-end">{{ proyecto.presupuesto|cop }}</td>
+                    <td class="text-end {% if proyecto.sobre_presupuesto %}text-danger fw-bold{% endif %}">{{ proyecto.gastado|cop }}</td>
+                </tr>
+            {% empty %}
+                <tr><td colspan="7" class="text-center text-muted py-4">No hay proyectos registrados</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

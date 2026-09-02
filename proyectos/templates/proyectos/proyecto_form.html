@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}{% if proyecto %}Editar proyecto{% else %}Nuevo proyecto{% endif %}{% endblock %}
+{% block content %}
+<h2 class="mb-4">{% if proyecto %}Editar proyecto{% else %}Nuevo proyecto{% endif %}</h2>
+<div class="card card-kpi p-4" style="max-width:720px;">
+    <form method="post">
+        {% csrf_token %}
+        <div class="row g-3">
+            <div class="col-md-8">
+                <label class="form-label">Nombre de la obra</label>
+                {{ form.nombre }}
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Estado</label>
+                {{ form.estado }}
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Cliente</label>
+                {{ form.cliente }}
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Responsable de la obra</label>
+                {{ form.responsable }}
+            </div>
+            <div class="col-12">
+                <label class="form-label">Ubicación / dirección de la obra</label>
+                {{ form.ubicacion }}
+            </div>
+            <div class="col-12">
+                <label class="form-label">Descripción / alcance</label>
+                {{ form.descripcion }}
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Presupuesto</label>
+                {{ form.presupuesto }}
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Fecha de inicio</label>
+                {{ form.fecha_inicio }}
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Entrega estimada</label>
+                {{ form.fecha_fin_estimada }}
+            </div>
+            {% if proyecto %}
+            <div class="col-md-4">
+                <label class="form-label">Entrega real</label>
+                {{ form.fecha_fin_real }}
+            </div>
+            {% endif %}
+        </div>
+        <div class="mt-4">
+            <button type="submit" class="btn btn-primary">Guardar</button>
+            {% if proyecto %}
+                <a href="{% url 'proyectos:proyecto_detalle' proyecto.pk %}" class="btn btn-outline-secondary">Cancelar</a>
+            {% else %}
+                <a href="{% url 'proyectos:proyecto_lista' %}" class="btn btn-outline-secondary">Cancelar</a>
+            {% endif %}
+        </div>
+    </form>
+</div>
+{% endblock %}

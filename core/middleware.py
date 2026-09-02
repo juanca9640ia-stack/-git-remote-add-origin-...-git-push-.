@@ -6,7 +6,7 @@ from core.models import Empresa, PerfilUsuario
 # Namespaces de app cuyo acceso exige pertenecer al grupo de permisos del módulo
 # (o ser superusuario). El nombre coincide con el app_label de cada app, que es
 # justo lo que 'seed_data' usa para filtrar los permisos de cada grupo.
-MODULOS_RESTRINGIDOS = {"ventas", "compras", "inventario", "finanzas", "produccion", "rrhh"}
+MODULOS_RESTRINGIDOS = {"ventas", "compras", "inventario", "finanzas", "produccion", "rrhh", "proyectos"}
 
 
 class EmpresaActualMiddleware:

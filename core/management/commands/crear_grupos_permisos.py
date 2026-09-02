@@ -9,6 +9,7 @@ GRUPOS_PERMISOS = {
     "Finanzas": ["finanzas"],
     "Producción": ["produccion"],
     "RR.HH.": ["rrhh"],
+    "Proyectos": ["proyectos"],
 }
 
 
@@ -35,5 +36,5 @@ class Command(BaseCommand):
                 group.permissions.add(ver_dashboard)
 
         self.stdout.write(self.style.SUCCESS(
-            "Grupos: Administración, Ventas, Inventario, Compras, Finanzas, Producción, RR.HH."
+            "Grupos: Administración, Ventas, Inventario, Compras, Finanzas, Producción, RR.HH., Proyectos"
         ))

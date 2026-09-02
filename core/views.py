@@ -14,6 +14,7 @@ from compras.models import Compra, Proveedor
 from finanzas.models import CuentaPorCobrar, CuentaPorPagar
 from inventario.models import Producto
 from produccion.models import OrdenProduccion
+from proyectos.models import Proyecto
 from rrhh.models import Empleado
 from ventas.models import Cliente, Cotizacion, Venta
 
@@ -314,6 +315,20 @@ def busqueda_global(request):
                     {"titulo": e.nombre_completo, "subtitulo": e.cargo,
                      "url": reverse("rrhh:empleado_detalle", args=[e.pk])}
                     for e in empleados
+                ],
+            })
+
+    if request.user.has_module_perms("proyectos"):
+        proyectos = Proyecto.objects.filter(empresa=empresa).filter(
+            Q(numero__icontains=q) | Q(nombre__icontains=q)
+        )[:LIMITE_RESULTADOS_POR_CATEGORIA]
+        if proyectos:
+            resultados.append({
+                "categoria": "Proyectos", "icono": "bi-buildings",
+                "items": [
+                    {"titulo": p.nombre, "subtitulo": p.numero,
+                     "url": reverse("proyectos:proyecto_detalle", args=[p.pk])}
+                    for p in proyectos
                 ],
             })
 

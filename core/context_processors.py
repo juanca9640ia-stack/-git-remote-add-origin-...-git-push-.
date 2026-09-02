@@ -16,6 +16,7 @@ NOMBRES_SECCION = {
     "finanzas": "Finanzas",
     "produccion": "Producción",
     "rrhh": "RR.HH.",
+    "proyectos": "Proyectos",
     "administracion": "Administración",
 }
 

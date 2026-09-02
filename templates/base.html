@@ -128,6 +128,17 @@
         </div>
         {% endif %}
 
+        {% if perms.proyectos %}
+        <div class="sap-nav-group" data-group="proyectos">
+            <button type="button" class="sap-nav-section" data-toggle-group><span>Proyectos</span><i class="bi bi-chevron-down sap-nav-chevron"></i></button>
+            <div class="sap-nav-links">
+                <a href="{% url 'proyectos:proyecto_lista' %}" class="sap-nav-link {% if 'proyectos' in request.path %}active{% endif %}" title="Obras">
+                    <i class="bi bi-buildings"></i><span>Obras</span>
+                </a>
+            </div>
+        </div>
+        {% endif %}
+
         {% if perms.compras or perms.inventario or perms.produccion %}
         <div class="sap-nav-group" data-group="operaciones">
             <button type="button" class="sap-nav-section" data-toggle-group><span>Operaciones</span><i class="bi bi-chevron-down sap-nav-chevron"></i></button>

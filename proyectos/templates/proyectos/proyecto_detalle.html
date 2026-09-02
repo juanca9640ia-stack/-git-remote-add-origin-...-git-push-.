@@ -1,0 +1,186 @@
+{% extends "base.html" %}
+{% load money %}
+{% block title %}{{ proyecto.nombre }}{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
+    <div>
+        <div class="text-muted small mb-1">{{ proyecto.numero }}</div>
+        <h2 class="mb-1">{{ proyecto.nombre }}</h2>
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+            {% if proyecto.estado == "en_curso" %}<span class="badge bg-info">En curso</span>
+            {% elif proyecto.estado == "finalizado" %}<span class="badge bg-success">Finalizado</span>
+            {% elif proyecto.estado == "pausado" %}<span class="badge bg-warning text-dark">Pausado</span>
+            {% elif proyecto.estado == "cancelado" %}<span class="badge bg-secondary">Cancelado</span>
+            {% else %}<span class="badge bg-light text-dark border">En planificación</span>{% endif %}
+            {% if proyecto.cliente %}<span class="text-muted small">{{ proyecto.cliente }}</span>{% endif %}
+            {% if proyecto.ubicacion %}<span class="text-muted small"><i class="bi bi-geo-alt"></i> {{ proyecto.ubicacion }}</span>{% endif %}
+        </div>
+    </div>
+    <a href="{% url 'proyectos:proyecto_editar' proyecto.pk %}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-pencil me-1"></i>Editar</a>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="card card-kpi p-3">
+            <small class="text-muted text-uppercase">Presupuesto</small>
+            <div class="fs-4 fw-bold">{{ proyecto.presupuesto|cop }}</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card card-kpi p-3 {% if proyecto.sobre_presupuesto %}border-danger{% endif %}">
+            <small class="text-muted text-uppercase">Gastado</small>
+            <div class="fs-4 fw-bold {% if proyecto.sobre_presupuesto %}text-danger{% endif %}">{{ proyecto.gastado|cop }}</div>
+            <small class="{% if proyecto.sobre_presupuesto %}text-danger{% else %}text-muted{% endif %}">
+                {% if proyecto.porcentaje_gastado != None %}{{ proyecto.porcentaje_gastado }}% del presupuesto{% else %}Sin presupuesto definido{% endif %}
+            </small>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card card-kpi p-3">
+            <small class="text-muted text-uppercase">Avance (hitos)</small>
+            <div class="fs-4 fw-bold">{{ proyecto.porcentaje_avance }}%</div>
+            <small class="text-muted">{{ proyecto.hitos_completados }} de {{ proyecto.total_hitos }} hitos</small>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card card-kpi p-3">
+            <small class="text-muted text-uppercase">Entrega estimada</small>
+            <div class="fs-4 fw-bold">{{ proyecto.fecha_fin_estimada|date:"d/m/Y"|default:"—" }}</div>
+            <small class="text-muted">{{ proyecto.responsable|default:"Sin responsable" }}</small>
+        </div>
+    </div>
+</div>
+
+{% if proyecto.descripcion %}
+<div class="card card-kpi p-3 mb-4">
+    <small class="text-muted text-uppercase mb-1">Alcance</small>
+    <p class="mb-0">{{ proyecto.descripcion|linebreaksbr }}</p>
+</div>
+{% endif %}
+
+<div class="row g-3">
+    <div class="col-lg-5">
+        <div class="card card-kpi mb-3">
+            <div class="card-header bg-white fw-bold d-flex justify-content-between align-items-center">
+                Hitos
+                <button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#formHito">+ Agregar</button>
+            </div>
+            <div class="collapse" id="formHito">
+                <form method="post" action="{% url 'proyectos:hito_crear' proyecto.pk %}" class="p-3 border-bottom bg-light">
+                    {% csrf_token %}
+                    <div class="row g-2">
+                        <div class="col-12">{{ hito_form.nombre }}</div>
+                        <div class="col-7">{{ hito_form.fecha_objetivo }}</div>
+                        <div class="col-5">{{ hito_form.orden }}</div>
+                    </div>
+                    <button type="submit" class="btn btn-sm btn-primary mt-2">Agregar hito</button>
+                </form>
+            </div>
+            <ul class="list-group list-group-flush">
+                {% for hito in hitos %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <div class="form-check">
+                            <form method="post" action="{% url 'proyectos:hito_toggle' proyecto.pk hito.pk %}" class="d-inline">
+                                {% csrf_token %}
+                                <input type="checkbox" class="form-check-input" onchange="this.form.submit()" {% if hito.completado %}checked{% endif %}>
+                            </form>
+                            <span class="{% if hito.completado %}text-decoration-line-through text-muted{% elif hito.vencido %}text-danger{% endif %}">
+                                {{ hito.nombre }}
+                            </span>
+                            {% if hito.fecha_objetivo %}
+                                <small class="text-muted d-block ms-4">{{ hito.fecha_objetivo|date:"d/m/Y" }}{% if hito.vencido %} · vencido{% endif %}</small>
+                            {% endif %}
+                        </div>
+                        <form method="post" action="{% url 'proyectos:hito_eliminar' proyecto.pk hito.pk %}" onsubmit="return confirm('¿Eliminar este hito?');">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-sm btn-link text-danger p-0"><i class="bi bi-trash"></i></button>
+                        </form>
+                    </li>
+                {% empty %}
+                    <li class="list-group-item text-center text-muted py-4">Sin hitos definidos</li>
+                {% endfor %}
+            </ul>
+        </div>
+
+        <div class="card card-kpi">
+            <div class="card-header bg-white fw-bold d-flex justify-content-between align-items-center">
+                Equipo asignado
+                <button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#formAsignacion">+ Asignar</button>
+            </div>
+            <div class="collapse" id="formAsignacion">
+                <form method="post" action="{% url 'proyectos:asignacion_crear' proyecto.pk %}" class="p-3 border-bottom bg-light">
+                    {% csrf_token %}
+                    <div class="row g-2">
+                        <div class="col-7">{{ asignacion_form.empleado }}</div>
+                        <div class="col-5">{{ asignacion_form.rol_en_obra }}</div>
+                    </div>
+                    <button type="submit" class="btn btn-sm btn-primary mt-2">Asignar</button>
+                </form>
+            </div>
+            <ul class="list-group list-group-flush">
+                {% for asignacion in asignaciones %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="sap-avatar">{{ asignacion.empleado.nombre_completo|slice:":1"|upper }}</span>
+                            <div>
+                                <div>{{ asignacion.empleado.nombre_completo }}</div>
+                                <small class="text-muted">{{ asignacion.rol_en_obra|default:asignacion.empleado.cargo }}</small>
+                            </div>
+                        </div>
+                        <form method="post" action="{% url 'proyectos:asignacion_quitar' proyecto.pk asignacion.pk %}" onsubmit="return confirm('¿Retirar de la obra?');">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-sm btn-link text-danger p-0"><i class="bi bi-x-circle"></i></button>
+                        </form>
+                    </li>
+                {% empty %}
+                    <li class="list-group-item text-center text-muted py-4">Sin personal asignado</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+
+    <div class="col-lg-7">
+        <div class="card card-kpi">
+            <div class="card-header bg-white fw-bold d-flex justify-content-between align-items-center">
+                Gastos de obra
+                <button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#formGasto">+ Registrar gasto</button>
+            </div>
+            <div class="collapse" id="formGasto">
+                <form method="post" action="{% url 'proyectos:gasto_crear' proyecto.pk %}" class="p-3 border-bottom bg-light">
+                    {% csrf_token %}
+                    <div class="row g-2">
+                        <div class="col-md-5">{{ gasto_form.concepto }}</div>
+                        <div class="col-md-3">{{ gasto_form.categoria }}</div>
+                        <div class="col-md-2">{{ gasto_form.valor }}</div>
+                        <div class="col-md-2">{{ gasto_form.fecha }}</div>
+                    </div>
+                    <button type="submit" class="btn btn-sm btn-primary mt-2">Registrar gasto</button>
+                </form>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead><tr><th>Concepto</th><th>Categoría</th><th>Fecha</th><th class="text-end">Valor</th><th></th></tr></thead>
+                    <tbody>
+                    {% for gasto in gastos %}
+                        <tr>
+                            <td>{{ gasto.concepto }}</td>
+                            <td><span class="badge bg-light text-dark border">{{ gasto.get_categoria_display }}</span></td>
+                            <td>{{ gasto.fecha|date:"d/m/Y" }}</td>
+                            <td class="text-end">{{ gasto.valor|cop }}</td>
+                            <td class="text-end">
+                                <form method="post" action="{% url 'proyectos:gasto_eliminar' proyecto.pk gasto.pk %}" onsubmit="return confirm('¿Eliminar este gasto?');">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-sm btn-link text-danger p-0"><i class="bi bi-trash"></i></button>
+                                </form>
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr><td colspan="5" class="text-center text-muted py-4">Sin gastos registrados</td></tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
