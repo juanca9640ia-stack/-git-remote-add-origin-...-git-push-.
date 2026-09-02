@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+{% load money %}
+{% block title %}{{ cliente.nombre }}{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
+    <div class="d-flex align-items-center gap-3">
+        <span class="sap-avatar-lg">{{ cliente.nombre|slice:":1"|upper }}</span>
+        <div>
+            <h2 class="mb-0">{{ cliente.nombre }}</h2>
+            <div class="text-muted small">
+                {{ cliente.documento|default:"Sin documento" }}
+                {% if cliente.email %} · {{ cliente.email }}{% endif %}
+                {% if cliente.telefono %} · {{ cliente.telefono }}{% endif %}
+                {% if not cliente.activo %} · <span class="badge bg-secondary">Inactivo</span>{% endif %}
+            </div>
+        </div>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{% url 'ventas:venta_crear' %}" class="btn btn-outline-primary btn-sm"><i class="bi bi-receipt me-1"></i>Nueva venta</a>
+        <a href="{% url 'ventas:cliente_editar' cliente.pk %}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-pencil me-1"></i>Editar</a>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="card card-kpi p-3">
+            <small class="text-muted text-uppercase">Total facturado</small>
+            <div class="fs-4 fw-bold">{{ total_facturado|cop }}</div>
+            <small class="text-muted">{{ ventas_count }} venta{{ ventas_count|pluralize }}</small>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card card-kpi p-3 {% if cxc_vencidas %}border-danger{% endif %}">
+            <small class="text-muted text-uppercase">Saldo pendiente</small>
+            <div class="fs-4 fw-bold {% if cxc_vencidas %}text-danger{% endif %}">{{ saldo_pendiente|cop }}</div>
+            <small class="{% if cxc_vencidas %}text-danger{% else %}text-muted{% endif %}">
+                {% if cxc_vencidas %}{{ cxc_vencidas }} factura{{ cxc_vencidas|pluralize }} vencida{{ cxc_vencidas|pluralize }}{% else %}Al día{% endif %}
+            </small>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card card-kpi p-3">
+            <small class="text-muted text-uppercase">Cotizaciones</small>
+            <div class="fs-4 fw-bold">{{ cotizaciones_count }}</div>
+            <small class="text-muted">
+                {% if tasa_conversion != None %}{{ tasa_conversion }}% de cierre{% else %}Sin decisiones aún{% endif %}
+            </small>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card card-kpi p-3">
+            <small class="text-muted text-uppercase">Última venta</small>
+            <div class="fs-4 fw-bold">{{ ultima_venta.confirmada_en|date:"d/m/Y"|default:"—" }}</div>
+            <small class="text-muted">{% if ultima_venta %}{{ ultima_venta.numero }} · {{ ultima_venta.total|cop }}{% else %}Sin ventas confirmadas{% endif %}</small>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3">
+    <div class="col-lg-6">
+        <div class="card card-kpi mb-3">
+            <div class="card-header bg-white fw-bold d-flex justify-content-between">
+                Ventas recientes
+                <a href="{% url 'ventas:venta_lista' %}" class="small">Ver todas</a>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead><tr><th>#</th><th>Estado</th><th>Fecha</th><th class="text-end">Total</th></tr></thead>
+                    <tbody>
+                    {% for venta in ventas %}
+                        <tr onclick="window.location='{% url 'ventas:venta_detalle' venta.pk %}'" style="cursor:pointer">
+                            <td>{{ venta.numero }}</td>
+                            <td>
+                                {% if venta.estado == "confirmada" %}<span class="badge bg-success">Confirmada</span>
+                                {% elif venta.estado == "anulada" %}<span class="badge bg-secondary">Anulada</span>
+                                {% else %}<span class="badge bg-warning text-dark">Borrador</span>{% endif %}
+                            </td>
+                            <td>{{ venta.creado_en|date:"d/m/Y" }}</td>
+                            <td class="text-end">{{ venta.total|cop }}</td>
+                        </tr>
+                    {% empty %}
+                        <tr><td colspan="4" class="text-center text-muted py-3">Sin ventas registradas</td></tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="card card-kpi">
+            <div class="card-header bg-white fw-bold d-flex justify-content-between">
+                Cuentas de cobro
+                <a href="{% url 'ventas:cuenta_cobro_lista' %}" class="small">Ver todas</a>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead><tr><th>#</th><th>Estado</th><th>Fecha</th><th class="text-end">Valor</th></tr></thead>
+                    <tbody>
+                    {% for cc in cuentas_cobro %}
+                        <tr onclick="window.location='{% url 'ventas:cuenta_cobro_detalle' cc.pk %}'" style="cursor:pointer">
+                            <td>{{ cc.numero }}</td>
+                            <td>
+                                {% if cc.estado == "pagada" %}<span class="badge bg-success">Pagada</span>
+                                {% elif cc.estado == "emitida" %}<span class="badge bg-info">Emitida</span>
+                                {% elif cc.estado == "anulada" %}<span class="badge bg-secondary">Anulada</span>
+                                {% else %}<span class="badge bg-warning text-dark">Borrador</span>{% endif %}
+                            </td>
+                            <td>{{ cc.fecha|date:"d/m/Y" }}</td>
+                            <td class="text-end">{{ cc.valor|cop }}</td>
+                        </tr>
+                    {% empty %}
+                        <tr><td colspan="4" class="text-center text-muted py-3">Sin cuentas de cobro</td></tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-6">
+        <div class="card card-kpi">
+            <div class="card-header bg-white fw-bold d-flex justify-content-between">
+                Cotizaciones recientes
+                <a href="{% url 'ventas:cotizacion_lista' %}" class="small">Ver todas</a>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead><tr><th>#</th><th>Estado</th><th>Fecha</th><th class="text-end">Total</th></tr></thead>
+                    <tbody>
+                    {% for cot in cotizaciones %}
+                        <tr onclick="window.location='{% url 'ventas:cotizacion_detalle' cot.pk %}'" style="cursor:pointer">
+                            <td>{{ cot.numero }}</td>
+                            <td>
+                                {% if cot.estado == "aceptada" %}<span class="badge bg-success">Aceptada</span>
+                                {% elif cot.estado == "rechazada" %}<span class="badge bg-danger">Rechazada</span>
+                                {% elif cot.estado == "enviada" %}<span class="badge bg-info">Enviada</span>
+                                {% else %}<span class="badge bg-warning text-dark">Borrador</span>{% endif %}
+                                {% if cot.venta_id %}<span class="badge bg-success"><i class="bi bi-arrow-right-circle"></i></span>{% endif %}
+                            </td>
+                            <td>{{ cot.creado_en|date:"d/m/Y" }}</td>
+                            <td class="text-end">{{ cot.total|cop }}</td>
+                        </tr>
+                    {% empty %}
+                        <tr><td colspan="4" class="text-center text-muted py-3">Sin cotizaciones registradas</td></tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

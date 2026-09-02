@@ -1,10 +1,13 @@
+from decimal import Decimal
+
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import Q, Sum
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from inventario.models import Producto
@@ -31,6 +34,51 @@ def cliente_lista(request):
     if query:
         clientes = clientes.filter(Q(nombre__icontains=query) | Q(documento__icontains=query))
     return render(request, "ventas/cliente_lista.html", {"clientes": clientes, "query": query})
+
+
+@login_required
+def cliente_detalle(request, pk):
+    """Vista 360°: todo lo que hay que saber de un cliente en una sola pantalla
+    (compras, cotizaciones, cartera y cuentas de cobro)."""
+    from finanzas.models import CuentaPorCobrar
+
+    cliente = get_object_or_404(Cliente, pk=pk, empresa=request.empresa)
+
+    ventas = Venta.objects.filter(cliente=cliente, empresa=request.empresa).order_by("-creado_en")
+    ventas_confirmadas = ventas.filter(estado=Venta.CONFIRMADA)
+    total_facturado = sum((v.total for v in ventas_confirmadas), Decimal("0"))
+    ultima_venta = ventas_confirmadas.first()
+
+    cotizaciones = Cotizacion.objects.filter(cliente=cliente, empresa=request.empresa).order_by("-creado_en")
+    cotizaciones_decididas = cotizaciones.filter(estado__in=[Cotizacion.ACEPTADA, Cotizacion.RECHAZADA]).count()
+    cotizaciones_aceptadas = cotizaciones.filter(estado=Cotizacion.ACEPTADA).count()
+    tasa_conversion = round(cotizaciones_aceptadas / cotizaciones_decididas * 100) if cotizaciones_decididas else None
+
+    cxc = CuentaPorCobrar.objects.filter(venta__cliente=cliente, empresa=request.empresa).exclude(
+        estado=CuentaPorCobrar.ANULADA
+    )
+    saldo_pendiente = cxc.aggregate(total=Sum("saldo_pendiente"))["total"] or Decimal("0")
+    hoy = timezone.localdate()
+    cxc_vencidas = cxc.filter(
+        fecha_vencimiento__lt=hoy, estado__in=[CuentaPorCobrar.PENDIENTE, CuentaPorCobrar.PARCIAL],
+    ).count()
+
+    cuentas_cobro = CuentaCobro.objects.filter(cliente=cliente, empresa=request.empresa).order_by("-creado_en")
+
+    context = {
+        "cliente": cliente,
+        "total_facturado": total_facturado,
+        "ultima_venta": ultima_venta,
+        "ventas": ventas[:10],
+        "ventas_count": ventas.count(),
+        "cotizaciones": cotizaciones[:10],
+        "cotizaciones_count": cotizaciones.count(),
+        "tasa_conversion": tasa_conversion,
+        "saldo_pendiente": saldo_pendiente,
+        "cxc_vencidas": cxc_vencidas,
+        "cuentas_cobro": cuentas_cobro[:10],
+    }
+    return render(request, "ventas/cliente_detalle.html", context)
 
 
 @login_required

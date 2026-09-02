@@ -21,13 +21,13 @@
             <thead><tr><th>Nombre</th><th>Documento</th><th>Email</th><th>Teléfono</th><th></th></tr></thead>
             <tbody>
             {% for cliente in clientes %}
-                <tr>
+                <tr onclick="window.location='{% url 'ventas:cliente_detalle' cliente.pk %}'" style="cursor:pointer">
                     <td>{{ cliente.nombre }}</td>
                     <td>{{ cliente.documento|default:"—" }}</td>
                     <td>{{ cliente.email|default:"—" }}</td>
                     <td>{{ cliente.telefono|default:"—" }}</td>
                     <td class="text-end">
-                        <a href="{% url 'ventas:cliente_editar' cliente.pk %}" class="btn btn-sm btn-outline-secondary">Editar</a>
+                        <a href="{% url 'ventas:cliente_editar' cliente.pk %}" class="btn btn-sm btn-outline-secondary" onclick="event.stopPropagation()">Editar</a>
                     </td>
                 </tr>
             {% empty %}
