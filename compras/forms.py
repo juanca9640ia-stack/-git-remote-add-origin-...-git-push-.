@@ -1,6 +1,8 @@
 from django import forms
 from django.forms import inlineformset_factory
 
+from inventario.models import Producto
+
 from .models import Compra, LineaCompra, Proveedor
 
 
@@ -35,8 +37,10 @@ class CompraForm(forms.ModelForm):
             "notas": forms.Textarea(attrs={"rows": 2}),
         }
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, empresa=None, **kwargs):
         super().__init__(*args, **kwargs)
+        if empresa is not None:
+            self.fields["proveedor"].queryset = Proveedor.objects.filter(empresa=empresa)
         for field in self.fields.values():
             field.widget.attrs.setdefault("class", "form-control")
 
@@ -46,8 +50,10 @@ class LineaCompraForm(forms.ModelForm):
         model = LineaCompra
         fields = ["producto", "cantidad", "precio_unitario"]
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, empresa=None, **kwargs):
         super().__init__(*args, **kwargs)
+        if empresa is not None:
+            self.fields["producto"].queryset = Producto.objects.filter(empresa=empresa)
         for field in self.fields.values():
             field.widget.attrs.setdefault("class", "form-control form-control-sm")
 

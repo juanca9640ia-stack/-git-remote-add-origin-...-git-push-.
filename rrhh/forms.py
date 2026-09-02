@@ -34,8 +34,10 @@ class EmpleadoForm(forms.ModelForm):
             "fecha_contratacion": forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
         }
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, empresa=None, **kwargs):
         super().__init__(*args, **kwargs)
+        if empresa is not None:
+            self.fields["departamento"].queryset = Departamento.objects.filter(empresa=empresa)
         for field in self.fields.values():
             css = "form-check-input" if isinstance(field.widget, forms.CheckboxInput) else "form-control"
             field.widget.attrs.setdefault("class", css)
@@ -72,13 +74,20 @@ class NominaForm(forms.Form):
         widget=forms.TextInput(attrs={"class": "form-control", "placeholder": "2026-08 o 2026-W32"}),
     )
 
+    def __init__(self, *args, empresa=None, **kwargs):
+        self.empresa = empresa
+        super().__init__(*args, **kwargs)
+
     def clean_periodo(self):
         periodo = self.cleaned_data["periodo"].strip().upper()
         try:
             rango_periodo(periodo)
         except ModelValidationError as exc:
             raise forms.ValidationError(exc.messages[0])
-        if Nomina.objects.filter(periodo=periodo).exists():
+        existentes = Nomina.objects.filter(periodo=periodo)
+        if self.empresa is not None:
+            existentes = existentes.filter(empresa=self.empresa)
+        if existentes.exists():
             raise forms.ValidationError(f"Ya existe una nómina para el período {periodo}.")
         return periodo
 
@@ -125,9 +134,12 @@ class PrestamoForm(forms.ModelForm):
             "fecha_otorgado": forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
         }
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, empresa=None, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields["empleado"].queryset = Empleado.objects.filter(activo=True)
+        empleados = Empleado.objects.filter(activo=True)
+        if empresa is not None:
+            empleados = empleados.filter(empresa=empresa)
+        self.fields["empleado"].queryset = empleados
         for field in self.fields.values():
             field.widget.attrs.setdefault("class", "form-control")
 

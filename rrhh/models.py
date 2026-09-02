@@ -197,10 +197,11 @@ class Nomina(models.Model):
     def generar_detalles(self):
         if not self.editable:
             raise ValidationError("Solo una nómina en borrador puede regenerar sus detalles.")
-        for empleado in Empleado.objects.filter(activo=True):
+        for empleado in Empleado.objects.filter(activo=True, empresa=self.empresa):
             detalle, _ = DetalleNomina.objects.get_or_create(
                 nomina=self, empleado=empleado,
                 defaults={
+                    "empresa": self.empresa,
                     "salario_base": (
                         empleado.salario_base if empleado.tipo_pago == Empleado.PAGO_SALARIO else Decimal("0")
                     ),
@@ -329,7 +330,7 @@ class Prestamo(models.Model):
             self.saldo_pendiente = Decimal("0")
             self.estado = self.PAGADO
         self.save(update_fields=["saldo_pendiente", "estado"])
-        AbonoPrestamo.objects.create(prestamo=self, valor=valor, nomina=nomina)
+        AbonoPrestamo.objects.create(empresa=self.empresa, prestamo=self, valor=valor, nomina=nomina)
         return valor
 
 

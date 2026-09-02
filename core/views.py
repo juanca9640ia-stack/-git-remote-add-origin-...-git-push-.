@@ -25,12 +25,13 @@ def dashboard(request):
             return redirect("rrhh:mi_perfil")
         return render(request, "core/sin_acceso.html")
 
-    productos = Producto.objects.filter(activo=True)
+    empresa = request.empresa
+    productos = Producto.objects.filter(activo=True, empresa=empresa)
     productos_stock_bajo = [p for p in productos if p.stock_bajo]
     valor_inventario = sum((p.valor_inventario for p in productos), Decimal("0"))
 
     hoy = timezone.localdate()
-    ventas_confirmadas = Venta.objects.filter(estado=Venta.CONFIRMADA)
+    ventas_confirmadas = Venta.objects.filter(estado=Venta.CONFIRMADA, empresa=empresa)
     ventas_hoy = ventas_confirmadas.filter(confirmada_en__date=hoy)
     total_ventas_hoy = sum((v.total for v in ventas_hoy), Decimal("0"))
     total_ventas_mes = sum(
@@ -39,28 +40,31 @@ def dashboard(request):
         )), Decimal("0")
     )
 
-    compras_confirmadas = Compra.objects.filter(estado=Compra.CONFIRMADA)
+    compras_confirmadas = Compra.objects.filter(estado=Compra.CONFIRMADA, empresa=empresa)
     total_compras_mes = sum(
         (c.total for c in compras_confirmadas.filter(
             creado_en__year=hoy.year, creado_en__month=hoy.month
         )), Decimal("0")
     )
 
-    cxc_activas = CuentaPorCobrar.objects.exclude(estado=CuentaPorCobrar.ANULADA)
-    cxp_activas = CuentaPorPagar.objects.exclude(estado=CuentaPorPagar.ANULADA)
+    cxc_activas = CuentaPorCobrar.objects.filter(empresa=empresa).exclude(estado=CuentaPorCobrar.ANULADA)
+    cxp_activas = CuentaPorPagar.objects.filter(empresa=empresa).exclude(estado=CuentaPorPagar.ANULADA)
     total_por_cobrar = sum((c.saldo_pendiente for c in cxc_activas), Decimal("0"))
     total_por_pagar = sum((c.saldo_pendiente for c in cxp_activas), Decimal("0"))
     cxc_pendientes_count = cxc_activas.exclude(estado=CuentaPorCobrar.PAGADA).count()
     cxp_pendientes_count = cxp_activas.exclude(estado=CuentaPorPagar.PAGADA).count()
 
     cxc_vencidas = CuentaPorCobrar.objects.filter(
+        empresa=empresa,
         fecha_vencimiento__lt=hoy, estado__in=[CuentaPorCobrar.PENDIENTE, CuentaPorCobrar.PARCIAL],
     )
     cxc_vencidas_count = cxc_vencidas.count()
     cxc_vencidas_total = sum((c.saldo_pendiente for c in cxc_vencidas), Decimal("0"))
 
-    ordenes_planificadas = OrdenProduccion.objects.filter(estado=OrdenProduccion.PLANIFICADA).count()
-    empleados_activos = Empleado.objects.filter(activo=True).count()
+    ordenes_planificadas = OrdenProduccion.objects.filter(
+        estado=OrdenProduccion.PLANIFICADA, empresa=empresa
+    ).count()
+    empleados_activos = Empleado.objects.filter(activo=True, empresa=empresa).count()
 
     tiles = [
         {
@@ -106,7 +110,7 @@ def dashboard(request):
         "total_ventas_hoy": total_ventas_hoy,
         "total_ventas_mes": total_ventas_mes,
         "ultimas_ventas": ultimas_ventas,
-        "total_clientes": Venta.objects.values("cliente").distinct().count(),
+        "total_clientes": Venta.objects.filter(empresa=empresa).values("cliente").distinct().count(),
         "total_por_cobrar": total_por_cobrar,
         "total_por_pagar": total_por_pagar,
         "cxc_pendientes_count": cxc_pendientes_count,

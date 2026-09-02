@@ -18,16 +18,16 @@ from .models import CuentaPorCobrar, CuentaPorPagar
 
 @login_required
 def resumen(request):
-    total_por_cobrar = CuentaPorCobrar.objects.exclude(estado=CuentaPorCobrar.ANULADA).aggregate(
-        total=Sum("saldo_pendiente")
-    )["total"] or Decimal("0")
-    total_por_pagar = CuentaPorPagar.objects.exclude(estado=CuentaPorPagar.ANULADA).aggregate(
-        total=Sum("saldo_pendiente")
-    )["total"] or Decimal("0")
+    total_por_cobrar = CuentaPorCobrar.objects.filter(empresa=request.empresa).exclude(
+        estado=CuentaPorCobrar.ANULADA
+    ).aggregate(total=Sum("saldo_pendiente"))["total"] or Decimal("0")
+    total_por_pagar = CuentaPorPagar.objects.filter(empresa=request.empresa).exclude(
+        estado=CuentaPorPagar.ANULADA
+    ).aggregate(total=Sum("saldo_pendiente"))["total"] or Decimal("0")
 
-    ventas_confirmadas = Venta.objects.filter(estado=Venta.CONFIRMADA)
-    compras_confirmadas = Compra.objects.filter(estado=Compra.CONFIRMADA)
-    nominas_procesadas = Nomina.objects.filter(estado=Nomina.PROCESADA)
+    ventas_confirmadas = Venta.objects.filter(estado=Venta.CONFIRMADA, empresa=request.empresa)
+    compras_confirmadas = Compra.objects.filter(estado=Compra.CONFIRMADA, empresa=request.empresa)
+    nominas_procesadas = Nomina.objects.filter(estado=Nomina.PROCESADA, empresa=request.empresa)
     ingresos_totales = sum((v.total for v in ventas_confirmadas), Decimal("0"))
     egresos_totales = (
         sum((c.total for c in compras_confirmadas), Decimal("0"))
@@ -35,11 +35,11 @@ def resumen(request):
     )
 
     cxc_pendientes_qs = CuentaPorCobrar.objects.filter(
-        estado__in=[CuentaPorCobrar.PENDIENTE, CuentaPorCobrar.PARCIAL]
+        empresa=request.empresa, estado__in=[CuentaPorCobrar.PENDIENTE, CuentaPorCobrar.PARCIAL]
     ).select_related("venta", "venta__cliente")
     cxc_pendientes = cxc_pendientes_qs[:8]
     cxp_pendientes = CuentaPorPagar.objects.filter(
-        estado__in=[CuentaPorPagar.PENDIENTE, CuentaPorPagar.PARCIAL]
+        empresa=request.empresa, estado__in=[CuentaPorPagar.PENDIENTE, CuentaPorPagar.PARCIAL]
     ).select_related("compra", "compra__proveedor", "nomina")[:8]
 
     hoy = timezone.localdate()
@@ -63,7 +63,7 @@ def resumen(request):
 
 @login_required
 def cxc_lista(request):
-    cuentas = CuentaPorCobrar.objects.select_related("venta", "venta__cliente").all()
+    cuentas = CuentaPorCobrar.objects.select_related("venta", "venta__cliente").filter(empresa=request.empresa)
     estado = request.GET.get("estado", "")
     if estado:
         cuentas = cuentas.filter(estado=estado)
@@ -80,7 +80,7 @@ def cxc_lista(request):
         )
 
     saldo_por_cliente = list(
-        CuentaPorCobrar.objects.exclude(estado=CuentaPorCobrar.ANULADA)
+        CuentaPorCobrar.objects.filter(empresa=request.empresa).exclude(estado=CuentaPorCobrar.ANULADA)
         .values("venta__cliente__id", "venta__cliente__nombre")
         .annotate(saldo=Sum("saldo_pendiente"))
         .filter(saldo__gt=0)
@@ -91,6 +91,7 @@ def cxc_lista(request):
         fila["porcentaje"] = int(fila["saldo"] / saldo_maximo * 100) if saldo_maximo else 0
 
     vencidas_qs = CuentaPorCobrar.objects.filter(
+        empresa=request.empresa,
         fecha_vencimiento__lt=hoy, estado__in=[CuentaPorCobrar.PENDIENTE, CuentaPorCobrar.PARCIAL],
     )
     vencidas_count = vencidas_qs.count()
@@ -98,7 +99,9 @@ def cxc_lista(request):
 
     return render(request, "finanzas/cxc_lista.html", {
         "cuentas": cuentas, "estado": estado,
-        "clientes": Cliente.objects.filter(ventas__cuenta_por_cobrar__isnull=False).distinct().order_by("nombre"),
+        "clientes": Cliente.objects.filter(
+            empresa=request.empresa, ventas__cuenta_por_cobrar__isnull=False
+        ).distinct().order_by("nombre"),
         "cliente_id": cliente_id, "solo_vencidas": solo_vencidas,
         "saldo_por_cliente": saldo_por_cliente,
         "vencidas_count": vencidas_count, "vencidas_total": vencidas_total,
@@ -107,7 +110,9 @@ def cxc_lista(request):
 
 @login_required
 def cxc_detalle(request, pk):
-    cuenta = get_object_or_404(CuentaPorCobrar.objects.select_related("venta", "venta__cliente"), pk=pk)
+    cuenta = get_object_or_404(
+        CuentaPorCobrar.objects.select_related("venta", "venta__cliente"), pk=pk, empresa=request.empresa
+    )
     if request.method == "POST":
         form = RegistrarPagoForm(request.POST)
         if form.is_valid():
@@ -134,7 +139,10 @@ def cxc_detalle(request, pk):
 
 @login_required
 def cxp_lista(request):
-    cuentas = CuentaPorPagar.objects.select_related("compra", "compra__proveedor", "nomina").all()
+    cuentas = (
+        CuentaPorPagar.objects.select_related("compra", "compra__proveedor", "nomina")
+        .filter(empresa=request.empresa)
+    )
     estado = request.GET.get("estado", "")
     if estado:
         cuentas = cuentas.filter(estado=estado)
@@ -144,7 +152,8 @@ def cxp_lista(request):
 @login_required
 def cxp_detalle(request, pk):
     cuenta = get_object_or_404(
-        CuentaPorPagar.objects.select_related("compra", "compra__proveedor", "nomina"), pk=pk
+        CuentaPorPagar.objects.select_related("compra", "compra__proveedor", "nomina"),
+        pk=pk, empresa=request.empresa,
     )
     if request.method == "POST":
         form = RegistrarPagoForm(request.POST)

@@ -57,7 +57,7 @@ def usuario_crear(request):
 
 @staff_member_required(login_url="login")
 def usuario_editar(request, pk):
-    usuario = get_object_or_404(User, pk=pk)
+    usuario = get_object_or_404(User, pk=pk, perfil__empresa=request.empresa)
     if request.method == "POST":
         form = UsuarioEditarForm(request.POST, instance=usuario)
         if form.is_valid():
@@ -76,7 +76,7 @@ def usuario_editar(request, pk):
 
 @staff_member_required(login_url="login")
 def usuario_toggle_activo(request, pk):
-    usuario = get_object_or_404(User, pk=pk)
+    usuario = get_object_or_404(User, pk=pk, perfil__empresa=request.empresa)
     if request.method == "POST":
         if usuario == request.user:
             messages.error(request, "No puedes desactivar tu propia cuenta.")
@@ -90,7 +90,7 @@ def usuario_toggle_activo(request, pk):
 
 @staff_member_required(login_url="login")
 def usuario_cambiar_password(request, pk):
-    usuario = get_object_or_404(User, pk=pk)
+    usuario = get_object_or_404(User, pk=pk, perfil__empresa=request.empresa)
     if request.method == "POST":
         form = CambiarPasswordForm(request.POST, usuario=usuario)
         if form.is_valid():
@@ -105,10 +105,22 @@ def usuario_cambiar_password(request, pk):
 
 @staff_member_required(login_url="login")
 def auditoria_lista(request):
-    movimientos = MovimientoInventario.objects.select_related("producto", "usuario").order_by("-creado_en")[:LIMITE_POR_FUENTE]
-    pagos_cliente = PagoCliente.objects.select_related("registrado_por", "cuenta__venta").order_by("-creado_en")[:LIMITE_POR_FUENTE]
-    pagos_proveedor = PagoProveedor.objects.select_related("registrado_por", "cuenta__compra", "cuenta__nomina").order_by("-creado_en")[:LIMITE_POR_FUENTE]
-    nominas_procesadas = Nomina.objects.filter(estado=Nomina.PROCESADA).select_related("procesada_por").order_by("-procesada_en")[:LIMITE_POR_FUENTE]
+    movimientos = (
+        MovimientoInventario.objects.filter(empresa=request.empresa)
+        .select_related("producto", "usuario").order_by("-creado_en")[:LIMITE_POR_FUENTE]
+    )
+    pagos_cliente = (
+        PagoCliente.objects.filter(empresa=request.empresa)
+        .select_related("registrado_por", "cuenta__venta").order_by("-creado_en")[:LIMITE_POR_FUENTE]
+    )
+    pagos_proveedor = (
+        PagoProveedor.objects.filter(empresa=request.empresa)
+        .select_related("registrado_por", "cuenta__compra", "cuenta__nomina").order_by("-creado_en")[:LIMITE_POR_FUENTE]
+    )
+    nominas_procesadas = (
+        Nomina.objects.filter(estado=Nomina.PROCESADA, empresa=request.empresa)
+        .select_related("procesada_por").order_by("-procesada_en")[:LIMITE_POR_FUENTE]
+    )
 
     eventos = []
     for m in movimientos:

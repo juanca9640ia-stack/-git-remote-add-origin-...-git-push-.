@@ -62,6 +62,7 @@ class UsuarioCrearEditarTests(TestCase):
 
     def test_editar_usuario_actualiza_grupos(self):
         usuario = User.objects.create_user(username="vendedor3", password="ClaveSegura123")
+        PerfilUsuario.objects.create(usuario=usuario, empresa_id=1)
         response = self.client.post(reverse("administracion:usuario_editar", args=[usuario.pk]), {
             "username": "vendedor3", "first_name": "", "last_name": "", "email": "",
             "is_active": "on", "is_staff": "", "groups": [self.grupo_ventas.pk],
@@ -93,6 +94,7 @@ class UsuarioToggleYPasswordTests(TestCase):
     def setUp(self):
         self.staff = User.objects.create_user(username="staff1", password="ClaveSegura123", is_staff=True)
         self.otro = User.objects.create_user(username="otro1", password="ClaveSegura123", is_active=True)
+        PerfilUsuario.objects.create(usuario=self.otro, empresa_id=1)
         self.client.force_login(self.staff)
 
     def test_toggle_activo_desactiva_otro_usuario(self):

@@ -13,18 +13,18 @@ from .forms import CompraForm, LineaCompraFormSet, ProveedorForm, ProveedorRapid
 from .models import Compra, Proveedor
 
 
-def _precios_producto_json():
-    return {str(p.pk): str(p.precio_costo) for p in Producto.objects.filter(activo=True)}
+def _precios_producto_json(empresa):
+    return {str(p.pk): str(p.precio_costo) for p in Producto.objects.filter(activo=True, empresa=empresa)}
 
 
-def _descripciones_producto_json():
-    return {str(p.pk): p.descripcion for p in Producto.objects.filter(activo=True)}
+def _descripciones_producto_json(empresa):
+    return {str(p.pk): p.descripcion for p in Producto.objects.filter(activo=True, empresa=empresa)}
 
 
 @login_required
 def proveedor_lista(request):
     query = request.GET.get("q", "")
-    proveedores = Proveedor.objects.all()
+    proveedores = Proveedor.objects.filter(empresa=request.empresa)
     if query:
         proveedores = proveedores.filter(Q(nombre__icontains=query) | Q(nit__icontains=query))
     return render(request, "compras/proveedor_lista.html", {"proveedores": proveedores, "query": query})
@@ -32,11 +32,13 @@ def proveedor_lista(request):
 
 @login_required
 def proveedor_form(request, pk=None):
-    proveedor = get_object_or_404(Proveedor, pk=pk) if pk else None
+    proveedor = get_object_or_404(Proveedor, pk=pk, empresa=request.empresa) if pk else None
     if request.method == "POST":
         form = ProveedorForm(request.POST, instance=proveedor)
         if form.is_valid():
-            obj = form.save()
+            obj = form.save(commit=False)
+            obj.empresa = request.empresa
+            obj.save()
             messages.success(request, f"Proveedor '{obj.nombre}' guardado correctamente.")
             return redirect("compras:proveedor_lista")
     else:
@@ -50,14 +52,16 @@ def proveedor_crear_rapido(request):
     """Crea un proveedor desde el modal de compras sin salir del formulario."""
     form = ProveedorRapidoForm(request.POST)
     if form.is_valid():
-        proveedor = form.save()
+        proveedor = form.save(commit=False)
+        proveedor.empresa = request.empresa
+        proveedor.save()
         return JsonResponse({"ok": True, "id": proveedor.pk, "nombre": str(proveedor)})
     return JsonResponse({"ok": False, "errors": form.errors}, status=400)
 
 
 @login_required
 def compra_lista(request):
-    compras = Compra.objects.select_related("proveedor", "responsable").all()
+    compras = Compra.objects.select_related("proveedor", "responsable").filter(empresa=request.empresa)
     estado = request.GET.get("estado", "")
     if estado:
         compras = compras.filter(estado=estado)
@@ -66,7 +70,9 @@ def compra_lista(request):
 
 @login_required
 def compra_detalle(request, pk):
-    compra = get_object_or_404(Compra.objects.select_related("proveedor", "responsable"), pk=pk)
+    compra = get_object_or_404(
+        Compra.objects.select_related("proveedor", "responsable"), pk=pk, empresa=request.empresa
+    )
     return render(request, "compras/compra_detalle.html", {"compra": compra})
 
 
@@ -74,10 +80,11 @@ def compra_detalle(request, pk):
 @transaction.atomic
 def compra_crear(request):
     if request.method == "POST":
-        form = CompraForm(request.POST)
-        formset = LineaCompraFormSet(request.POST)
+        form = CompraForm(request.POST, empresa=request.empresa)
+        formset = LineaCompraFormSet(request.POST, form_kwargs={"empresa": request.empresa})
         if form.is_valid() and formset.is_valid():
             compra = form.save(commit=False)
+            compra.empresa = request.empresa
             compra.responsable = request.user
             compra.save()
             formset.instance = compra
@@ -85,44 +92,44 @@ def compra_crear(request):
             messages.success(request, f"Compra {compra.numero} creada como borrador. Confírmala para recibir la mercancía.")
             return redirect("compras:compra_detalle", pk=compra.pk)
     else:
-        form = CompraForm()
-        formset = LineaCompraFormSet()
+        form = CompraForm(empresa=request.empresa)
+        formset = LineaCompraFormSet(form_kwargs={"empresa": request.empresa})
     return render(request, "compras/compra_form.html", {
         "form": form, "formset": formset, "compra": None,
-        "precios_producto": _precios_producto_json(),
-        "descripciones_producto": _descripciones_producto_json(),
+        "precios_producto": _precios_producto_json(request.empresa),
+        "descripciones_producto": _descripciones_producto_json(request.empresa),
     })
 
 
 @login_required
 @transaction.atomic
 def compra_editar(request, pk):
-    compra = get_object_or_404(Compra, pk=pk)
+    compra = get_object_or_404(Compra, pk=pk, empresa=request.empresa)
     if not compra.editable:
         messages.error(request, "Esta compra ya no se puede editar.")
         return redirect("compras:compra_detalle", pk=compra.pk)
 
     if request.method == "POST":
-        form = CompraForm(request.POST, instance=compra)
-        formset = LineaCompraFormSet(request.POST, instance=compra)
+        form = CompraForm(request.POST, instance=compra, empresa=request.empresa)
+        formset = LineaCompraFormSet(request.POST, instance=compra, form_kwargs={"empresa": request.empresa})
         if form.is_valid() and formset.is_valid():
             form.save()
             formset.save()
             messages.success(request, "Compra actualizada.")
             return redirect("compras:compra_detalle", pk=compra.pk)
     else:
-        form = CompraForm(instance=compra)
-        formset = LineaCompraFormSet(instance=compra)
+        form = CompraForm(instance=compra, empresa=request.empresa)
+        formset = LineaCompraFormSet(instance=compra, form_kwargs={"empresa": request.empresa})
     return render(request, "compras/compra_form.html", {
         "form": form, "formset": formset, "compra": compra,
-        "precios_producto": _precios_producto_json(),
-        "descripciones_producto": _descripciones_producto_json(),
+        "precios_producto": _precios_producto_json(request.empresa),
+        "descripciones_producto": _descripciones_producto_json(request.empresa),
     })
 
 
 @login_required
 def compra_confirmar(request, pk):
-    compra = get_object_or_404(Compra, pk=pk)
+    compra = get_object_or_404(Compra, pk=pk, empresa=request.empresa)
     if request.method == "POST":
         try:
             compra.confirmar(usuario=request.user)
@@ -134,7 +141,7 @@ def compra_confirmar(request, pk):
 
 @login_required
 def compra_anular(request, pk):
-    compra = get_object_or_404(Compra, pk=pk)
+    compra = get_object_or_404(Compra, pk=pk, empresa=request.empresa)
     if request.method == "POST":
         try:
             compra.anular(usuario=request.user)

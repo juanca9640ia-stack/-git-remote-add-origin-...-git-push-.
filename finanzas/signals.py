@@ -21,6 +21,7 @@ def sincronizar_cuenta_por_cobrar(sender, instance, **kwargs):
         CuentaPorCobrar.objects.get_or_create(
             venta=instance,
             defaults={
+                "empresa": instance.empresa,
                 "monto_total": instance.total, "saldo_pendiente": instance.total,
                 "fecha_vencimiento": vencimiento,
             },
@@ -39,7 +40,10 @@ def sincronizar_cuenta_por_pagar(sender, instance, **kwargs):
     if instance.estado == Compra.CONFIRMADA:
         CuentaPorPagar.objects.get_or_create(
             compra=instance,
-            defaults={"monto_total": instance.total, "saldo_pendiente": instance.total},
+            defaults={
+                "empresa": instance.empresa,
+                "monto_total": instance.total, "saldo_pendiente": instance.total,
+            },
         )
     elif instance.estado == Compra.ANULADA:
         cuenta = CuentaPorPagar.objects.filter(compra=instance).exclude(estado=CuentaPorPagar.ANULADA).first()
@@ -55,5 +59,8 @@ def sincronizar_cuenta_por_pagar_nomina(sender, instance, **kwargs):
     if instance.estado == Nomina.PROCESADA:
         CuentaPorPagar.objects.get_or_create(
             nomina=instance,
-            defaults={"monto_total": instance.total_pagar, "saldo_pendiente": instance.total_pagar},
+            defaults={
+                "empresa": instance.empresa,
+                "monto_total": instance.total_pagar, "saldo_pendiente": instance.total_pagar,
+            },
         )

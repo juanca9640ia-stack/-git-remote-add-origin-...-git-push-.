@@ -14,8 +14,10 @@ class ListaMaterialesForm(forms.ModelForm):
             "notas": forms.Textarea(attrs={"rows": 2}),
         }
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, empresa=None, **kwargs):
         super().__init__(*args, **kwargs)
+        if empresa is not None:
+            self.fields["producto"].queryset = Producto.objects.filter(empresa=empresa)
         for field in self.fields.values():
             field.widget.attrs.setdefault("class", "form-control")
         if self.instance.pk:
@@ -27,8 +29,10 @@ class ComponenteBOMForm(forms.ModelForm):
         model = ComponenteBOM
         fields = ["insumo", "cantidad_por_unidad"]
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, empresa=None, **kwargs):
         super().__init__(*args, **kwargs)
+        if empresa is not None:
+            self.fields["insumo"].queryset = Producto.objects.filter(empresa=empresa)
         for field in self.fields.values():
             field.widget.attrs.setdefault("class", "form-control form-control-sm")
 
@@ -51,10 +55,11 @@ class OrdenProduccionForm(forms.ModelForm):
             "notas": forms.Textarea(attrs={"rows": 2}),
         }
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, empresa=None, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields["producto"].queryset = Producto.objects.filter(
-            lista_materiales__isnull=False, activo=True
-        )
+        productos = Producto.objects.filter(lista_materiales__isnull=False, activo=True)
+        if empresa is not None:
+            productos = productos.filter(empresa=empresa)
+        self.fields["producto"].queryset = productos
         for field in self.fields.values():
             field.widget.attrs.setdefault("class", "form-control")

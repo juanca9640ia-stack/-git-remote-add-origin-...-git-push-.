@@ -56,7 +56,7 @@ def mi_perfil_marcar_entrada(request):
         hoy = timezone.localdate()
         asistencia, creada = Asistencia.objects.get_or_create(
             empleado=empleado, fecha=hoy,
-            defaults={"hora_entrada": timezone.localtime().time(), "estado": Asistencia.PRESENTE},
+            defaults={"empresa": empleado.empresa, "hora_entrada": timezone.localtime().time(), "estado": Asistencia.PRESENTE},
         )
         if not creada:
             messages.error(request, "Ya tienes una entrada registrada hoy.")
@@ -89,9 +89,9 @@ def mi_perfil_marcar_salida(request):
 @login_required
 @permiso_requerido("rrhh.view_empleado")
 def resumen(request):
-    empleados_activos = Empleado.objects.filter(activo=True)
+    empleados_activos = Empleado.objects.filter(activo=True, empresa=request.empresa)
     hoy = timezone.localdate()
-    asistencias_hoy = Asistencia.objects.filter(fecha=hoy)
+    asistencias_hoy = Asistencia.objects.filter(fecha=hoy, empresa=request.empresa)
     presentes_hoy = asistencias_hoy.filter(estado__in=[Asistencia.PRESENTE, Asistencia.TARDANZA]).count()
     ausentes_hoy = asistencias_hoy.filter(estado=Asistencia.AUSENTE).count()
     empleados_sin_registrar = (
@@ -99,14 +99,14 @@ def resumen(request):
     )
     sin_registrar_hoy = empleados_sin_registrar.count()
 
-    ultima_nomina = Nomina.objects.first()
+    ultima_nomina = Nomina.objects.filter(empresa=request.empresa).first()
 
-    prestamos_activos = Prestamo.objects.filter(estado=Prestamo.ACTIVO)
+    prestamos_activos = Prestamo.objects.filter(estado=Prestamo.ACTIVO, empresa=request.empresa)
     prestamos_activos_count = prestamos_activos.count()
     prestamos_activos_total = sum((p.saldo_pendiente for p in prestamos_activos), Decimal("0"))
 
     departamentos_conteo = list(
-        Departamento.objects.annotate(
+        Departamento.objects.filter(empresa=request.empresa).annotate(
             num_empleados=Count("empleados", filter=Q(empleados__activo=True))
         ).order_by("-num_empleados")
     )
@@ -133,11 +133,13 @@ def resumen(request):
 @login_required
 @permiso_requerido("rrhh.view_departamento")
 def departamento_lista(request):
-    departamentos = Departamento.objects.all()
+    departamentos = Departamento.objects.filter(empresa=request.empresa)
     if request.method == "POST":
         form = DepartamentoForm(request.POST)
         if form.is_valid():
-            form.save()
+            departamento = form.save(commit=False)
+            departamento.empresa = request.empresa
+            departamento.save()
             messages.success(request, "Departamento creado.")
             return redirect("rrhh:departamento_lista")
     else:
@@ -149,7 +151,7 @@ def departamento_lista(request):
 @permiso_requerido("rrhh.view_empleado")
 def empleado_lista(request):
     query = request.GET.get("q", "")
-    empleados = Empleado.objects.select_related("departamento").all()
+    empleados = Empleado.objects.select_related("departamento").filter(empresa=request.empresa)
     if query:
         empleados = empleados.filter(Q(nombre_completo__icontains=query) | Q(documento__icontains=query))
     return render(request, "rrhh/empleado_lista.html", {"empleados": empleados, "query": query})
@@ -158,22 +160,26 @@ def empleado_lista(request):
 @login_required
 @permiso_requerido("rrhh.view_empleado")
 def empleado_form(request, pk=None):
-    empleado = get_object_or_404(Empleado, pk=pk) if pk else None
+    empleado = get_object_or_404(Empleado, pk=pk, empresa=request.empresa) if pk else None
     if request.method == "POST":
-        form = EmpleadoForm(request.POST, instance=empleado)
+        form = EmpleadoForm(request.POST, instance=empleado, empresa=request.empresa)
         if form.is_valid():
-            obj = form.save()
+            obj = form.save(commit=False)
+            obj.empresa = request.empresa
+            obj.save()
             messages.success(request, f"Empleado '{obj.nombre_completo}' guardado correctamente.")
             return redirect("rrhh:empleado_detalle", pk=obj.pk)
     else:
-        form = EmpleadoForm(instance=empleado)
+        form = EmpleadoForm(instance=empleado, empresa=request.empresa)
     return render(request, "rrhh/empleado_form.html", {"form": form, "empleado": empleado})
 
 
 @login_required
 @permiso_requerido("rrhh.view_empleado")
 def empleado_detalle(request, pk):
-    empleado = get_object_or_404(Empleado.objects.select_related("departamento"), pk=pk)
+    empleado = get_object_or_404(
+        Empleado.objects.select_related("departamento"), pk=pk, empresa=request.empresa
+    )
     asistencias = empleado.asistencias.all()[:30]
     prestamos = empleado.prestamos.all()
     return render(
@@ -186,8 +192,10 @@ def empleado_detalle(request, pk):
 @permiso_requerido("rrhh.view_asistencia")
 def asistencia_lista(request):
     fecha = request.GET.get("fecha") or timezone.localdate().isoformat()
-    empleados = Empleado.objects.filter(activo=True).select_related("departamento")
-    asistencias = {a.empleado_id: a for a in Asistencia.objects.filter(fecha=fecha)}
+    empleados = Empleado.objects.filter(activo=True, empresa=request.empresa).select_related("departamento")
+    asistencias = {
+        a.empleado_id: a for a in Asistencia.objects.filter(fecha=fecha, empresa=request.empresa)
+    }
 
     filas = [{"empleado": emp, "asistencia": asistencias.get(emp.id)} for emp in empleados]
     presentes = sum(
@@ -206,12 +214,12 @@ def asistencia_lista(request):
 @login_required
 @permiso_requerido("rrhh.view_asistencia")
 def asistencia_marcar_entrada(request, empleado_id):
-    empleado = get_object_or_404(Empleado, pk=empleado_id)
+    empleado = get_object_or_404(Empleado, pk=empleado_id, empresa=request.empresa)
     if request.method == "POST":
         hoy = timezone.localdate()
         asistencia, creada = Asistencia.objects.get_or_create(
             empleado=empleado, fecha=hoy,
-            defaults={"hora_entrada": timezone.localtime().time(), "estado": Asistencia.PRESENTE},
+            defaults={"empresa": empleado.empresa, "hora_entrada": timezone.localtime().time(), "estado": Asistencia.PRESENTE},
         )
         if not creada:
             messages.error(request, f"{empleado} ya tiene asistencia registrada hoy.")
@@ -223,7 +231,7 @@ def asistencia_marcar_entrada(request, empleado_id):
 @login_required
 @permiso_requerido("rrhh.view_asistencia")
 def asistencia_marcar_salida(request, empleado_id):
-    empleado = get_object_or_404(Empleado, pk=empleado_id)
+    empleado = get_object_or_404(Empleado, pk=empleado_id, empresa=request.empresa)
     if request.method == "POST":
         hoy = timezone.localdate()
         try:
@@ -240,7 +248,7 @@ def asistencia_marcar_salida(request, empleado_id):
 @login_required
 @permiso_requerido("rrhh.view_asistencia")
 def asistencia_registrar(request, empleado_id):
-    empleado = get_object_or_404(Empleado, pk=empleado_id)
+    empleado = get_object_or_404(Empleado, pk=empleado_id, empresa=request.empresa)
     fecha = request.GET.get("fecha") or timezone.localdate().isoformat()
     instancia = Asistencia.objects.filter(empleado=empleado, fecha=fecha).first()
 
@@ -249,6 +257,7 @@ def asistencia_registrar(request, empleado_id):
         if form.is_valid():
             obj = form.save(commit=False)
             obj.empleado = empleado
+            obj.empresa = empleado.empresa
             obj.save()
             messages.success(request, f"Asistencia de {empleado} actualizada.")
             return redirect("rrhh:asistencia_lista")
@@ -261,7 +270,7 @@ def asistencia_registrar(request, empleado_id):
 @login_required
 @permiso_requerido("rrhh.view_nomina")
 def nomina_lista(request):
-    nominas = list(Nomina.objects.all())
+    nominas = list(Nomina.objects.filter(empresa=request.empresa))
     procesadas = [n for n in nominas if n.estado == Nomina.PROCESADA]
     context = {
         "nominas": nominas,
@@ -277,14 +286,14 @@ def nomina_lista(request):
 @transaction.atomic
 def nomina_crear(request):
     if request.method == "POST":
-        form = NominaForm(request.POST)
+        form = NominaForm(request.POST, empresa=request.empresa)
         if form.is_valid():
-            nomina = Nomina.objects.create(periodo=form.cleaned_data["periodo"])
+            nomina = Nomina.objects.create(empresa=request.empresa, periodo=form.cleaned_data["periodo"])
             nomina.generar_detalles()
             messages.success(request, f"Nómina {nomina.periodo} creada con {nomina.detalles.count()} empleado(s).")
             return redirect("rrhh:nomina_detalle", pk=nomina.pk)
     else:
-        form = NominaForm()
+        form = NominaForm(empresa=request.empresa)
     return render(request, "rrhh/nomina_form.html", {"form": form})
 
 
@@ -292,7 +301,7 @@ def nomina_crear(request):
 @permiso_requerido("rrhh.view_nomina")
 @transaction.atomic
 def nomina_detalle(request, pk):
-    nomina = get_object_or_404(Nomina, pk=pk)
+    nomina = get_object_or_404(Nomina, pk=pk, empresa=request.empresa)
     if nomina.editable:
         for detalle in nomina.detalles.select_related("empleado"):
             detalle.recalcular_dias_trabajados()
@@ -310,7 +319,7 @@ def nomina_detalle(request, pk):
 @login_required
 @permiso_requerido("rrhh.view_nomina")
 def nomina_procesar(request, pk):
-    nomina = get_object_or_404(Nomina, pk=pk)
+    nomina = get_object_or_404(Nomina, pk=pk, empresa=request.empresa)
     if request.method == "POST":
         try:
             nomina.procesar(usuario=request.user)
@@ -323,7 +332,8 @@ def nomina_procesar(request, pk):
 @login_required
 def detalle_nomina_recibo(request, pk):
     detalle = get_object_or_404(
-        DetalleNomina.objects.select_related("empleado", "empleado__departamento", "nomina"), pk=pk
+        DetalleNomina.objects.select_related("empleado", "empleado__departamento", "nomina"),
+        pk=pk, empresa=request.empresa,
     )
     es_propio = detalle.empleado.usuario_id == request.user.id
     if not (es_propio or request.user.has_perm("rrhh.view_nomina")):
@@ -336,7 +346,7 @@ def detalle_nomina_recibo(request, pk):
 @login_required
 @permiso_requerido("rrhh.view_prestamo")
 def prestamo_lista(request):
-    prestamos = Prestamo.objects.select_related("empleado").all()
+    prestamos = Prestamo.objects.select_related("empleado").filter(empresa=request.empresa)
     activos = [p for p in prestamos if p.estado == Prestamo.ACTIVO]
     context = {
         "prestamos": prestamos,
@@ -351,22 +361,25 @@ def prestamo_lista(request):
 @permiso_requerido("rrhh.view_prestamo")
 def prestamo_crear(request):
     if request.method == "POST":
-        form = PrestamoForm(request.POST)
+        form = PrestamoForm(request.POST, empresa=request.empresa)
         if form.is_valid():
             prestamo = form.save(commit=False)
+            prestamo.empresa = request.empresa
             prestamo.otorgado_por = request.user
             prestamo.save()
             messages.success(request, f"Préstamo de ${prestamo.monto} registrado para {prestamo.empleado}.")
             return redirect("rrhh:prestamo_detalle", pk=prestamo.pk)
     else:
-        form = PrestamoForm()
+        form = PrestamoForm(empresa=request.empresa)
     return render(request, "rrhh/prestamo_form.html", {"form": form})
 
 
 @login_required
 @permiso_requerido("rrhh.view_prestamo")
 def prestamo_detalle(request, pk):
-    prestamo = get_object_or_404(Prestamo.objects.select_related("empleado"), pk=pk)
+    prestamo = get_object_or_404(
+        Prestamo.objects.select_related("empleado"), pk=pk, empresa=request.empresa
+    )
     abonos = prestamo.abonos.select_related("nomina")
     abonado = prestamo.monto - prestamo.saldo_pendiente
     return render(

@@ -113,7 +113,8 @@ class OrdenProduccion(models.Model):
         self.componentes.all().delete()
         componentes = [
             ComponenteOrdenProduccion(
-                orden=self, insumo=c.insumo, cantidad_requerida=c.cantidad_por_unidad * self.cantidad,
+                empresa=self.empresa, orden=self, insumo=c.insumo,
+                cantidad_requerida=c.cantidad_por_unidad * self.cantidad,
             )
             for c in lista.componentes.select_related("insumo")
         ]

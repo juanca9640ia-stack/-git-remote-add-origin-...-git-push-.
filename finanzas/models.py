@@ -68,7 +68,8 @@ class CuentaPorCobrar(models.Model):
             raise ValidationError(f"El monto excede el saldo pendiente (${self.saldo_pendiente}).")
 
         pago = PagoCliente.objects.create(
-            cuenta=self, monto=monto, metodo=metodo, referencia=referencia, registrado_por=usuario,
+            empresa=self.empresa, cuenta=self, monto=monto, metodo=metodo,
+            referencia=referencia, registrado_por=usuario,
         )
         self.saldo_pendiente -= monto
         self.estado = self.PAGADA if self.saldo_pendiente == 0 else self.PARCIAL
@@ -164,7 +165,8 @@ class CuentaPorPagar(models.Model):
             raise ValidationError(f"El monto excede el saldo pendiente (${self.saldo_pendiente}).")
 
         pago = PagoProveedor.objects.create(
-            cuenta=self, monto=monto, metodo=metodo, referencia=referencia, registrado_por=usuario,
+            empresa=self.empresa, cuenta=self, monto=monto, metodo=metodo,
+            referencia=referencia, registrado_por=usuario,
         )
         self.saldo_pendiente -= monto
         self.estado = self.PAGADA if self.saldo_pendiente == 0 else self.PARCIAL
