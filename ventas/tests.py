@@ -6,7 +6,7 @@ from django.test import TestCase
 from django.utils import timezone
 
 from inventario.models import Categoria, MovimientoInventario, Producto
-from ventas.models import Cliente, Cotizacion, LineaCotizacion, LineaVenta, Venta
+from ventas.models import Cliente, Cotizacion, CuentaCobro, LineaCotizacion, LineaVenta, Venta
 
 
 class VentaInventarioIntegrationTests(TestCase):
@@ -325,3 +325,120 @@ class ClienteCrearRapidoTests(TestCase):
     def test_requiere_post(self):
         resp = self.client.get("/ventas/clientes/nuevo-rapido/")
         self.assertEqual(resp.status_code, 405)
+
+
+class CuentaCobroModelTests(TestCase):
+    def setUp(self):
+        self.cliente = Cliente.objects.create(nombre="Cliente de prueba", documento="123456")
+
+    def test_numero_consecutivo_se_asigna_al_guardar(self):
+        cuenta = CuentaCobro.objects.create(
+            cliente=self.cliente, concepto="Servicio de prueba", valor=Decimal("100000"),
+        )
+        self.assertEqual(cuenta.numero, f"CC-{cuenta.pk:06d}")
+
+    def test_persona_natural_requiere_nombre_y_documento(self):
+        cuenta = CuentaCobro(
+            cliente=self.cliente, concepto="Servicio", valor=Decimal("50000"),
+            emisor_tipo=CuentaCobro.PERSONA_NATURAL,
+        )
+        with self.assertRaises(ValidationError):
+            cuenta.full_clean()
+
+    def test_flujo_borrador_emitida_pagada(self):
+        cuenta = CuentaCobro.objects.create(
+            cliente=self.cliente, concepto="Servicio", valor=Decimal("50000"),
+        )
+        self.assertTrue(cuenta.editable)
+
+        cuenta.emitir()
+        self.assertEqual(cuenta.estado, CuentaCobro.EMITIDA)
+        self.assertIsNotNone(cuenta.emitida_en)
+        self.assertFalse(cuenta.editable)
+
+        cuenta.marcar_pagada()
+        self.assertEqual(cuenta.estado, CuentaCobro.PAGADA)
+
+    def test_no_se_puede_emitir_dos_veces(self):
+        cuenta = CuentaCobro.objects.create(
+            cliente=self.cliente, concepto="Servicio", valor=Decimal("50000"),
+        )
+        cuenta.emitir()
+        with self.assertRaises(ValidationError):
+            cuenta.emitir()
+
+    def test_anular_borrador_y_emitida(self):
+        cuenta = CuentaCobro.objects.create(
+            cliente=self.cliente, concepto="Servicio", valor=Decimal("50000"),
+        )
+        cuenta.anular()
+        self.assertEqual(cuenta.estado, CuentaCobro.ANULADA)
+
+        otra = CuentaCobro.objects.create(
+            cliente=self.cliente, concepto="Servicio", valor=Decimal("50000"),
+        )
+        otra.emitir()
+        otra.anular()
+        self.assertEqual(otra.estado, CuentaCobro.ANULADA)
+
+    def test_no_se_puede_anular_pagada(self):
+        cuenta = CuentaCobro.objects.create(
+            cliente=self.cliente, concepto="Servicio", valor=Decimal("50000"),
+        )
+        cuenta.emitir()
+        cuenta.marcar_pagada()
+        with self.assertRaises(ValidationError):
+            cuenta.anular()
+
+
+class CuentaCobroVistaTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_superuser(username="cobrador", password="clave-segura-123", email="")
+        self.client.force_login(self.user)
+        self.cliente = Cliente.objects.create(nombre="Cliente natural", documento="999")
+
+    def test_crear_cuenta_de_cobro_a_nombre_de_la_empresa(self):
+        resp = self.client.post("/ventas/cuentas-cobro/nueva/", {
+            "cliente": self.cliente.pk, "emisor_tipo": "empresa",
+            "concepto": "Diseño de logo", "valor": "300000", "fecha": "2026-09-01",
+            "forma_pago": "", "datos_pago": "",
+        })
+        cuenta = CuentaCobro.objects.get(cliente=self.cliente)
+        self.assertRedirects(resp, f"/ventas/cuentas-cobro/{cuenta.pk}/")
+        self.assertEqual(cuenta.emisor_tipo, "empresa")
+
+    def test_crear_cuenta_de_cobro_a_nombre_de_persona_natural(self):
+        resp = self.client.post("/ventas/cuentas-cobro/nueva/", {
+            "cliente": self.cliente.pk, "emisor_tipo": "persona_natural",
+            "emisor_nombre": "Juan Pérez", "emisor_documento": "1002003004",
+            "concepto": "Mano de obra", "valor": "150000", "fecha": "2026-09-01",
+            "forma_pago": "", "datos_pago": "",
+        })
+        cuenta = CuentaCobro.objects.get(cliente=self.cliente)
+        self.assertRedirects(resp, f"/ventas/cuentas-cobro/{cuenta.pk}/")
+        self.assertEqual(cuenta.emisor_nombre, "Juan Pérez")
+
+    def test_rechaza_persona_natural_sin_documento(self):
+        resp = self.client.post("/ventas/cuentas-cobro/nueva/", {
+            "cliente": self.cliente.pk, "emisor_tipo": "persona_natural",
+            "emisor_nombre": "Juan Pérez", "emisor_documento": "",
+            "concepto": "Mano de obra", "valor": "150000", "fecha": "2026-09-01",
+        })
+        self.assertEqual(resp.status_code, 200)
+        self.assertFalse(CuentaCobro.objects.filter(cliente=self.cliente).exists())
+
+    def test_no_se_puede_editar_una_cuenta_emitida(self):
+        cuenta = CuentaCobro.objects.create(
+            cliente=self.cliente, concepto="Servicio", valor=Decimal("50000"),
+        )
+        cuenta.emitir()
+        resp = self.client.get(f"/ventas/cuentas-cobro/{cuenta.pk}/editar/")
+        self.assertRedirects(resp, f"/ventas/cuentas-cobro/{cuenta.pk}/")
+
+    def test_imprimir_muestra_valor_en_letras(self):
+        cuenta = CuentaCobro.objects.create(
+            cliente=self.cliente, concepto="Servicio de pintura", valor=Decimal("150000"),
+        )
+        cuenta.emitir()
+        resp = self.client.get(f"/ventas/cuentas-cobro/{cuenta.pk}/imprimir/")
+        self.assertContains(resp, "CIENTO CINCUENTA MIL PESOS M/CTE")

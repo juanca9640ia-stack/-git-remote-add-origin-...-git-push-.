@@ -1,7 +1,7 @@
 from django import forms
 from django.forms import inlineformset_factory
 
-from .models import Cliente, Cotizacion, LineaCotizacion, LineaVenta, Venta
+from .models import Cliente, Cotizacion, CuentaCobro, LineaCotizacion, LineaVenta, Venta
 
 
 class ClienteForm(forms.ModelForm):
@@ -96,3 +96,32 @@ LineaCotizacionFormSet = inlineformset_factory(
     min_num=1,
     validate_min=True,
 )
+
+
+class CuentaCobroForm(forms.ModelForm):
+    class Meta:
+        model = CuentaCobro
+        fields = [
+            "cliente", "venta", "emisor_tipo", "emisor_nombre", "emisor_documento",
+            "concepto", "valor", "fecha", "forma_pago", "datos_pago",
+        ]
+        widgets = {
+            "concepto": forms.Textarea(attrs={"rows": 3}),
+            "fecha": forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["venta"].required = False
+        self.fields["venta"].queryset = Venta.objects.filter(estado=Venta.CONFIRMADA).order_by("-creado_en")
+        for field in self.fields.values():
+            field.widget.attrs.setdefault("class", "form-control")
+
+    def clean(self):
+        cleaned = super().clean()
+        if cleaned.get("emisor_tipo") == CuentaCobro.PERSONA_NATURAL:
+            if not cleaned.get("emisor_nombre") or not cleaned.get("emisor_documento"):
+                raise forms.ValidationError(
+                    "Ingresa el nombre y la cédula de la persona natural que emite la cuenta de cobro."
+                )
+        return cleaned

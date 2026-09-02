@@ -1,45 +1,101 @@
 {% extends "base.html" %}
 {% load money %}
-{% block title %}RR.HH. - Resumen{% endblock %}
+{% block title %}RR.HH. · Resumen ejecutivo{% endblock %}
 {% block content %}
-<h2 class="mb-4">Recursos Humanos</h2>
+<h2 class="mb-1">Recursos Humanos</h2>
+<p class="text-muted mb-4">Resumen ejecutivo del personal, asistencia, nómina y préstamos.</p>
 
-<div class="row g-3 mb-4">
-    <div class="col-md-3">
-        <div class="card card-kpi p-3">
-            <small class="text-muted text-uppercase">Empleados activos</small>
-            <div class="fs-4 fw-bold">{{ total_empleados }}</div>
+{% if sin_registrar_hoy %}
+<div class="alert alert-warning d-flex justify-content-between align-items-center mb-4">
+    <div><i class="bi bi-exclamation-triangle-fill me-2"></i><strong>{{ sin_registrar_hoy }}</strong> empleado(s) sin registrar asistencia hoy.</div>
+    <a href="{% url 'rrhh:asistencia_lista' %}" class="btn btn-sm btn-outline-dark">Ver asistencia</a>
+</div>
+{% endif %}
+
+<div class="sap-tile-grid mb-4">
+    <a href="{% url 'rrhh:empleado_lista' %}" class="sap-tile sap-tile-blue">
+        <div class="sap-tile-icon"><i class="bi bi-person-vcard"></i></div>
+        <div class="sap-tile-title">Empleados</div>
+        <div class="sap-tile-value">{{ total_empleados }}</div>
+        <div class="sap-tile-label">Activos</div>
+    </a>
+    <a href="{% url 'rrhh:asistencia_lista' %}" class="sap-tile sap-tile-green">
+        <div class="sap-tile-icon"><i class="bi bi-check-circle"></i></div>
+        <div class="sap-tile-title">Presentes hoy</div>
+        <div class="sap-tile-value">{{ presentes_hoy }}</div>
+        <div class="sap-tile-label">De {{ total_empleados }} empleados</div>
+    </a>
+    <a href="{% url 'rrhh:asistencia_lista' %}" class="sap-tile {% if ausentes_hoy %}sap-tile-orange{% else %}sap-tile-teal{% endif %}">
+        <div class="sap-tile-icon"><i class="bi bi-x-circle"></i></div>
+        <div class="sap-tile-title">Ausentes hoy</div>
+        <div class="sap-tile-value">{{ ausentes_hoy }}</div>
+        <div class="sap-tile-label">Sin registrar: {{ sin_registrar_hoy }}</div>
+    </a>
+    <a href="{% url 'rrhh:prestamo_lista' %}" class="sap-tile sap-tile-purple">
+        <div class="sap-tile-icon"><i class="bi bi-piggy-bank"></i></div>
+        <div class="sap-tile-title">Préstamos activos</div>
+        <div class="sap-tile-value">{{ prestamos_activos_count }}</div>
+        <div class="sap-tile-label">{{ prestamos_activos_total|cop }} pendiente</div>
+    </a>
+    <a href="{% if ultima_nomina %}{% url 'rrhh:nomina_detalle' ultima_nomina.pk %}{% else %}{% url 'rrhh:nomina_crear' %}{% endif %}" class="sap-tile sap-tile-indigo">
+        <div class="sap-tile-icon"><i class="bi bi-cash-stack"></i></div>
+        <div class="sap-tile-title">Última nómina</div>
+        <div class="sap-tile-value">{{ ultima_nomina.periodo|default:"—" }}</div>
+        <div class="sap-tile-label">
+            {% if ultima_nomina %}{{ ultima_nomina.total_pagar|cop }} · {{ ultima_nomina.get_estado_display }}{% else %}Sin crear todavía{% endif %}
         </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card card-kpi p-3">
-            <small class="text-muted text-uppercase">Presentes hoy</small>
-            <div class="fs-4 fw-bold text-success">{{ presentes_hoy }}</div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card card-kpi p-3">
-            <small class="text-muted text-uppercase">Ausentes hoy</small>
-            <div class="fs-4 fw-bold text-danger">{{ ausentes_hoy }}</div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card card-kpi p-3">
-            <small class="text-muted text-uppercase">Sin registrar hoy</small>
-            <div class="fs-4 fw-bold text-warning">{{ sin_registrar_hoy }}</div>
-        </div>
-    </div>
+    </a>
 </div>
 
-<div class="card card-kpi p-3" style="max-width:360px;">
-    <small class="text-muted text-uppercase">Última nómina</small>
-    {% if ultima_nomina %}
-        <div class="fs-5 fw-bold">{{ ultima_nomina.periodo }}</div>
-        <div class="text-muted">{{ ultima_nomina.total_pagar|cop }} · {{ ultima_nomina.get_estado_display }}</div>
-        <a href="{% url 'rrhh:nomina_detalle' ultima_nomina.pk %}" class="small">Ver detalle</a>
-    {% else %}
-        <div class="text-muted py-2">Aún no se ha creado ninguna nómina</div>
-        <a href="{% url 'rrhh:nomina_crear' %}" class="small">Crear la primera</a>
-    {% endif %}
+<div class="row g-3">
+    <div class="col-12 col-lg-6">
+        <div class="card card-kpi">
+            <div class="card-header bg-white fw-bold d-flex justify-content-between align-items-center">
+                Empleados por departamento
+                <span class="text-muted small fw-normal">{{ total_empleados }} activo(s)</span>
+            </div>
+            <div class="list-group list-group-flush">
+                {% for departamento in departamentos_conteo %}
+                    <a href="{% url 'rrhh:empleado_lista' %}" class="list-group-item list-group-item-action py-3">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="sap-avatar">{{ departamento.nombre|slice:":1"|upper }}</span>
+                                <span class="fw-medium">{{ departamento.nombre }}</span>
+                            </div>
+                            <strong>{{ departamento.num_empleados }}</strong>
+                        </div>
+                        <div class="progress" style="height:4px;">
+                            <div class="progress-bar" style="width:{{ departamento.porcentaje }}%;"></div>
+                        </div>
+                    </a>
+                {% empty %}
+                    <div class="list-group-item text-center text-muted py-4">Sin departamentos creados</div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    <div class="col-12 col-lg-6">
+        <div class="card card-kpi">
+            <div class="card-header bg-white fw-bold d-flex justify-content-between align-items-center">
+                Sin registrar asistencia hoy
+                <span class="text-muted small fw-normal">{{ sin_registrar_hoy }} empleado(s)</span>
+            </div>
+            <div class="list-group list-group-flush">
+                {% for empleado in empleados_sin_registrar %}
+                    <a href="{% url 'rrhh:empleado_detalle' empleado.pk %}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center py-2">
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="sap-avatar">{{ empleado.nombre_completo|slice:":1"|upper }}</span>
+                            <span>{{ empleado.nombre_completo }}</span>
+                        </div>
+                        <span class="text-muted small">{{ empleado.departamento|default:"—" }}</span>
+                    </a>
+                {% empty %}
+                    <div class="list-group-item text-center text-muted py-4">
+                        <i class="bi bi-check-circle text-success me-1"></i>Todos los empleados tienen asistencia registrada hoy
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
 </div>
 {% endblock %}

@@ -3,11 +3,32 @@
 {% block content %}
 <h2 class="mb-4">Control de asistencia</h2>
 
-<form class="row g-2 mb-3" method="get">
-    <div class="col-auto">
-        <input type="date" name="fecha" value="{{ fecha }}" class="form-control" onchange="this.form.submit()">
+<div class="row g-3 mb-3">
+    <div class="col-md-3">
+        <div class="card card-kpi p-3">
+            <small class="text-muted text-uppercase">Presentes</small>
+            <div class="fs-4 fw-bold text-success">{{ presentes }}</div>
+        </div>
     </div>
-</form>
+    <div class="col-md-3">
+        <div class="card card-kpi p-3">
+            <small class="text-muted text-uppercase">Ausentes</small>
+            <div class="fs-4 fw-bold text-danger">{{ ausentes }}</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card card-kpi p-3">
+            <small class="text-muted text-uppercase">Sin registrar</small>
+            <div class="fs-4 fw-bold {% if sin_registrar %}text-warning{% endif %}">{{ sin_registrar }}</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card card-kpi p-3">
+            <small class="text-muted text-uppercase">Fecha</small>
+            <input type="date" name="fecha" value="{{ fecha }}" class="form-control form-control-sm mt-1" onchange="window.location='?fecha='+this.value">
+        </div>
+    </div>
+</div>
 
 <div class="card card-kpi">
     <div class="table-responsive">

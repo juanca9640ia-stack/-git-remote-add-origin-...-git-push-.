@@ -26,4 +26,12 @@ urlpatterns = [
     path("cotizaciones/<int:pk>/rechazar/", views.cotizacion_marcar_rechazada, name="cotizacion_marcar_rechazada"),
     path("cotizaciones/<int:pk>/convertir/", views.cotizacion_convertir_venta, name="cotizacion_convertir_venta"),
     path("cotizaciones/<int:pk>/imprimir/", views.cotizacion_imprimir, name="cotizacion_imprimir"),
+    path("cuentas-cobro/", views.cuenta_cobro_lista, name="cuenta_cobro_lista"),
+    path("cuentas-cobro/nueva/", views.cuenta_cobro_form, name="cuenta_cobro_crear"),
+    path("cuentas-cobro/<int:pk>/", views.cuenta_cobro_detalle, name="cuenta_cobro_detalle"),
+    path("cuentas-cobro/<int:pk>/editar/", views.cuenta_cobro_form, name="cuenta_cobro_editar"),
+    path("cuentas-cobro/<int:pk>/emitir/", views.cuenta_cobro_emitir, name="cuenta_cobro_emitir"),
+    path("cuentas-cobro/<int:pk>/pagada/", views.cuenta_cobro_marcar_pagada, name="cuenta_cobro_marcar_pagada"),
+    path("cuentas-cobro/<int:pk>/anular/", views.cuenta_cobro_anular, name="cuenta_cobro_anular"),
+    path("cuentas-cobro/<int:pk>/imprimir/", views.cuenta_cobro_imprimir, name="cuenta_cobro_imprimir"),
 ]

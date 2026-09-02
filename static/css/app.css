@@ -89,6 +89,9 @@ h1, h2, h3, h4, h5, h6 {
     color: #fff; display: flex; align-items: center; justify-content: center;
     font-size: .75rem; font-weight: 700; flex-shrink: 0;
 }
+.sap-avatar-lg {
+    width: 56px; height: 56px; font-size: 1.4rem;
+}
 
 /* ===== Layout ===== */
 .sap-layout { display: flex; align-items: stretch; min-height: calc(100vh - 44px); }

@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% load money %}
+{% block title %}Cuenta de cobro {{ cuenta.numero }}{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-start mb-4">
+    <div>
+        <h2 class="mb-0">Cuenta de cobro {{ cuenta.numero }}</h2>
+        <span class="text-muted">Cliente: {{ cuenta.cliente }}{% if cuenta.venta %} · Venta relacionada: {{ cuenta.venta.numero }}{% endif %}</span>
+    </div>
+    <div>
+        {% if cuenta.estado == "pagada" %}
+            <span class="badge bg-success fs-6">Pagada</span>
+        {% elif cuenta.estado == "emitida" %}
+            <span class="badge bg-primary fs-6">Emitida</span>
+        {% elif cuenta.estado == "anulada" %}
+            <span class="badge bg-secondary fs-6">Anulada</span>
+        {% else %}
+            <span class="badge bg-warning text-dark fs-6">Borrador</span>
+        {% endif %}
+    </div>
+</div>
+
+<div class="row g-3">
+    <div class="col-12 col-lg-7">
+        <div class="card card-kpi p-3">
+            <h6 class="mb-3">Detalle</h6>
+            <div class="mb-2"><span class="text-muted small text-uppercase">Concepto</span><div>{{ cuenta.concepto|linebreaksbr }}</div></div>
+            <div class="row">
+                <div class="col-6">
+                    <span class="text-muted small text-uppercase">Valor</span>
+                    <div class="fs-4 fw-bold">{{ cuenta.valor|cop }}</div>
+                </div>
+                <div class="col-6">
+                    <span class="text-muted small text-uppercase">Fecha</span>
+                    <div>{{ cuenta.fecha|date:"d/m/Y" }}</div>
+                </div>
+            </div>
+            {% if cuenta.forma_pago %}<div class="mt-2"><span class="text-muted small text-uppercase">Forma de pago</span><div>{{ cuenta.forma_pago }}</div></div>{% endif %}
+            {% if cuenta.datos_pago %}<div class="mt-2"><span class="text-muted small text-uppercase">Datos de pago</span><div>{{ cuenta.datos_pago }}</div></div>{% endif %}
+        </div>
+    </div>
+    <div class="col-12 col-lg-5">
+        <div class="card card-kpi p-3">
+            <h6 class="mb-3">Emitida a nombre de</h6>
+            {% if cuenta.emisor_tipo == "persona_natural" %}
+                <div class="fw-bold">{{ cuenta.emisor_nombre }}</div>
+                <div class="text-muted small">Cédula: {{ cuenta.emisor_documento }}</div>
+            {% else %}
+                <div class="fw-bold">{{ empresa.nombre|default:"La empresa" }}</div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<div class="mt-4 d-flex gap-2 flex-wrap">
+    {% if cuenta.editable %}
+        <a href="{% url 'ventas:cuenta_cobro_editar' cuenta.pk %}" class="btn btn-outline-secondary">Editar</a>
+        <form method="post" action="{% url 'ventas:cuenta_cobro_emitir' cuenta.pk %}" onsubmit="return confirm('¿Emitir esta cuenta de cobro? Ya no se podrá editar.');">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-success">Emitir</button>
+        </form>
+        <form method="post" action="{% url 'ventas:cuenta_cobro_anular' cuenta.pk %}" onsubmit="return confirm('¿Anular esta cuenta de cobro?');">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-outline-danger">Anular</button>
+        </form>
+    {% elif cuenta.estado == "emitida" %}
+        <a href="{% url 'ventas:cuenta_cobro_imprimir' cuenta.pk %}" target="_blank" class="btn btn-primary"><i class="bi bi-printer me-1"></i>Ver / Imprimir</a>
+        <form method="post" action="{% url 'ventas:cuenta_cobro_marcar_pagada' cuenta.pk %}" onsubmit="return confirm('¿Marcar esta cuenta de cobro como pagada?');">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-outline-success">Marcar como pagada</button>
+        </form>
+        <form method="post" action="{% url 'ventas:cuenta_cobro_anular' cuenta.pk %}" onsubmit="return confirm('¿Anular esta cuenta de cobro?');">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-outline-danger">Anular</button>
+        </form>
+    {% elif cuenta.estado == "pagada" %}
+        <a href="{% url 'ventas:cuenta_cobro_imprimir' cuenta.pk %}" target="_blank" class="btn btn-primary"><i class="bi bi-printer me-1"></i>Ver / Imprimir</a>
+    {% endif %}
+    <a href="{% url 'ventas:cuenta_cobro_lista' %}" class="btn btn-outline-secondary">Volver</a>
+</div>
+{% endblock %}

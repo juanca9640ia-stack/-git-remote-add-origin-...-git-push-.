@@ -19,16 +19,27 @@
 <div class="card card-kpi">
     <div class="table-responsive">
         <table class="table table-hover mb-0 align-middle">
-            <thead><tr><th>Nombre</th><th>Documento</th><th>Cargo</th><th>Departamento</th><th class="text-end">Salario base</th><th>Activo</th></tr></thead>
+            <thead><tr><th>Empleado</th><th>Documento</th><th>Cargo</th><th>Departamento</th><th class="text-end">Pago</th><th>Estado</th></tr></thead>
             <tbody>
             {% for empleado in empleados %}
                 <tr onclick="window.location='{% url 'rrhh:empleado_detalle' empleado.pk %}'" style="cursor:pointer">
-                    <td>{{ empleado.nombre_completo }}</td>
+                    <td>
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="sap-avatar">{{ empleado.nombre_completo|slice:":1"|upper }}</span>
+                            <span>{{ empleado.nombre_completo }}</span>
+                        </div>
+                    </td>
                     <td>{{ empleado.documento }}</td>
                     <td>{{ empleado.cargo }}</td>
                     <td>{{ empleado.departamento|default:"—" }}</td>
-                    <td class="text-end">{{ empleado.salario_base|cop }}</td>
-                    <td>{% if empleado.activo %}<span class="badge bg-success">Sí</span>{% else %}<span class="badge bg-secondary">No</span>{% endif %}</td>
+                    <td class="text-end">
+                        {% if empleado.tipo_pago == "dia" %}
+                            {{ empleado.valor_dia|cop }}<span class="text-muted small">/día</span>
+                        {% else %}
+                            {{ empleado.salario_base|cop }}<span class="text-muted small">/mes</span>
+                        {% endif %}
+                    </td>
+                    <td>{% if empleado.activo %}<span class="badge bg-success">Activo</span>{% else %}<span class="badge bg-secondary">Inactivo</span>{% endif %}</td>
                 </tr>
             {% empty %}
                 <tr><td colspan="6" class="text-center text-muted py-4">No hay empleados registrados</td></tr>

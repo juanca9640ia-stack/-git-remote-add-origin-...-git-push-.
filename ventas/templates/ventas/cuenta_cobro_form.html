@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block title %}{% if cuenta %}Editar cuenta de cobro{% else %}Nueva cuenta de cobro{% endif %}{% endblock %}
+{% block content %}
+<h2 class="mb-4">{% if cuenta %}Editar cuenta de cobro{% else %}Nueva cuenta de cobro{% endif %}</h2>
+<div class="card card-kpi p-4" style="max-width:680px;">
+    <form method="post">
+        {% csrf_token %}
+        <div class="row g-3">
+            <div class="col-md-6">
+                <label class="form-label">Cliente</label>
+                {{ form.cliente }}
+                {% if form.cliente.errors %}<div class="text-danger small">{{ form.cliente.errors|join:" " }}</div>{% endif %}
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Venta relacionada (opcional)</label>
+                {{ form.venta }}
+            </div>
+
+            <div class="col-12"><hr class="my-2"></div>
+
+            <div class="col-md-6">
+                <label class="form-label">Emitir a nombre de</label>
+                {{ form.emisor_tipo }}
+            </div>
+            <div class="col-md-3" id="campo-emisor-nombre">
+                <label class="form-label">Nombre completo</label>
+                {{ form.emisor_nombre }}
+            </div>
+            <div class="col-md-3" id="campo-emisor-documento">
+                <label class="form-label">Cédula</label>
+                {{ form.emisor_documento }}
+            </div>
+            {% if form.non_field_errors %}
+                <div class="col-12"><div class="text-danger small">{{ form.non_field_errors|join:" " }}</div></div>
+            {% endif %}
+
+            <div class="col-12"><hr class="my-2"></div>
+
+            <div class="col-12">
+                <label class="form-label">Concepto</label>
+                {{ form.concepto }}
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Valor</label>
+                {{ form.valor }}
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Fecha</label>
+                {{ form.fecha }}
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Forma de pago</label>
+                {{ form.forma_pago }}
+            </div>
+            <div class="col-12">
+                <label class="form-label">Datos de pago (banco, cuenta, etc.)</label>
+                {{ form.datos_pago }}
+            </div>
+        </div>
+        <div class="mt-4">
+            <button type="submit" class="btn btn-primary">Guardar</button>
+            <a href="{% url 'ventas:cuenta_cobro_lista' %}" class="btn btn-outline-secondary">Cancelar</a>
+        </div>
+    </form>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    var tipoSelect = document.getElementById('id_emisor_tipo');
+    var campoNombre = document.getElementById('campo-emisor-nombre');
+    var campoDocumento = document.getElementById('campo-emisor-documento');
+
+    function actualizarCamposEmisor() {
+        var esPersonaNatural = tipoSelect.value === 'persona_natural';
+        campoNombre.style.display = esPersonaNatural ? '' : 'none';
+        campoDocumento.style.display = esPersonaNatural ? '' : 'none';
+    }
+
+    tipoSelect.addEventListener('change', actualizarCamposEmisor);
+    actualizarCamposEmisor();
+});
+</script>
+{% endblock %}

@@ -77,6 +77,9 @@
         <a href="{% url 'ventas:cotizacion_lista' %}" class="sap-nav-link {% if 'cotizaciones' in request.path %}active{% endif %}">
             <i class="bi bi-file-earmark-text"></i>Cotizaciones
         </a>
+        <a href="{% url 'ventas:cuenta_cobro_lista' %}" class="sap-nav-link {% if 'cuentas-cobro' in request.path %}active{% endif %}">
+            <i class="bi bi-file-earmark-ruled"></i>Cuentas de cobro
+        </a>
         <a href="{% url 'ventas:cliente_lista' %}" class="sap-nav-link {% if 'clientes' in request.path %}active{% endif %}">
             <i class="bi bi-people"></i>Clientes
         </a>

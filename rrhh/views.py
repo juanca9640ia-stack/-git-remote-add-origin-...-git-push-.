@@ -1,8 +1,10 @@
+from decimal import Decimal
+
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import Count, Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
@@ -93,16 +95,38 @@ def resumen(request):
     asistencias_hoy = Asistencia.objects.filter(fecha=hoy)
     presentes_hoy = asistencias_hoy.filter(estado__in=[Asistencia.PRESENTE, Asistencia.TARDANZA]).count()
     ausentes_hoy = asistencias_hoy.filter(estado=Asistencia.AUSENTE).count()
-    sin_registrar_hoy = empleados_activos.count() - asistencias_hoy.count()
+    empleados_sin_registrar = (
+        empleados_activos.exclude(asistencias__fecha=hoy).select_related("departamento")
+    )
+    sin_registrar_hoy = empleados_sin_registrar.count()
 
     ultima_nomina = Nomina.objects.first()
+
+    prestamos_activos = Prestamo.objects.filter(estado=Prestamo.ACTIVO)
+    prestamos_activos_count = prestamos_activos.count()
+    prestamos_activos_total = sum((p.saldo_pendiente for p in prestamos_activos), Decimal("0"))
+
+    departamentos_conteo = list(
+        Departamento.objects.annotate(
+            num_empleados=Count("empleados", filter=Q(empleados__activo=True))
+        ).order_by("-num_empleados")
+    )
+    max_departamento = max((d.num_empleados for d in departamentos_conteo), default=0)
+    for departamento in departamentos_conteo:
+        departamento.porcentaje = (
+            int((departamento.num_empleados / max_departamento) * 100) if max_departamento else 0
+        )
 
     context = {
         "total_empleados": empleados_activos.count(),
         "presentes_hoy": presentes_hoy,
         "ausentes_hoy": ausentes_hoy,
         "sin_registrar_hoy": sin_registrar_hoy,
+        "empleados_sin_registrar": empleados_sin_registrar[:8],
         "ultima_nomina": ultima_nomina,
+        "prestamos_activos_count": prestamos_activos_count,
+        "prestamos_activos_total": prestamos_activos_total,
+        "departamentos_conteo": departamentos_conteo,
     }
     return render(request, "rrhh/resumen.html", context)
 
@@ -167,8 +191,17 @@ def asistencia_lista(request):
     asistencias = {a.empleado_id: a for a in Asistencia.objects.filter(fecha=fecha)}
 
     filas = [{"empleado": emp, "asistencia": asistencias.get(emp.id)} for emp in empleados]
+    presentes = sum(
+        1 for f in filas if f["asistencia"] and f["asistencia"].estado in (Asistencia.PRESENTE, Asistencia.TARDANZA)
+    )
+    ausentes = sum(1 for f in filas if f["asistencia"] and f["asistencia"].estado == Asistencia.AUSENTE)
+    sin_registrar = sum(1 for f in filas if not f["asistencia"])
 
-    return render(request, "rrhh/asistencia_lista.html", {"filas": filas, "fecha": fecha})
+    context = {
+        "filas": filas, "fecha": fecha,
+        "presentes": presentes, "ausentes": ausentes, "sin_registrar": sin_registrar,
+    }
+    return render(request, "rrhh/asistencia_lista.html", context)
 
 
 @login_required
@@ -229,8 +262,15 @@ def asistencia_registrar(request, empleado_id):
 @login_required
 @permiso_requerido("rrhh.view_nomina")
 def nomina_lista(request):
-    nominas = Nomina.objects.all()
-    return render(request, "rrhh/nomina_lista.html", {"nominas": nominas})
+    nominas = list(Nomina.objects.all())
+    procesadas = [n for n in nominas if n.estado == Nomina.PROCESADA]
+    context = {
+        "nominas": nominas,
+        "procesadas_count": len(procesadas),
+        "borradores_count": len(nominas) - len(procesadas),
+        "total_pagado_historico": sum((n.total_pagar for n in procesadas), Decimal("0")),
+    }
+    return render(request, "rrhh/nomina_lista.html", context)
 
 
 @login_required
@@ -299,7 +339,14 @@ def detalle_nomina_recibo(request, pk):
 @permiso_requerido("rrhh.view_prestamo")
 def prestamo_lista(request):
     prestamos = Prestamo.objects.select_related("empleado").all()
-    return render(request, "rrhh/prestamo_lista.html", {"prestamos": prestamos})
+    activos = [p for p in prestamos if p.estado == Prestamo.ACTIVO]
+    context = {
+        "prestamos": prestamos,
+        "activos_count": len(activos),
+        "saldo_total": sum((p.saldo_pendiente for p in activos), Decimal("0")),
+        "otorgado_total": sum((p.monto for p in prestamos), Decimal("0")),
+    }
+    return render(request, "rrhh/prestamo_lista.html", context)
 
 
 @login_required

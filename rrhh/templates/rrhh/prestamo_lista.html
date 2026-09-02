@@ -7,6 +7,27 @@
     <a href="{% url 'rrhh:prestamo_crear' %}" class="btn btn-primary"><i class="bi bi-plus-lg me-1"></i>Nuevo préstamo</a>
 </div>
 
+<div class="row g-3 mb-4">
+    <div class="col-md-4">
+        <div class="card card-kpi p-3">
+            <small class="text-muted text-uppercase">Préstamos activos</small>
+            <div class="fs-4 fw-bold">{{ activos_count }}</div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card card-kpi p-3">
+            <small class="text-muted text-uppercase">Saldo pendiente</small>
+            <div class="fs-4 fw-bold text-warning">{{ saldo_total|cop }}</div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card card-kpi p-3">
+            <small class="text-muted text-uppercase">Total otorgado histórico</small>
+            <div class="fs-4 fw-bold">{{ otorgado_total|cop }}</div>
+        </div>
+    </div>
+</div>
+
 <div class="card card-kpi">
     <div class="table-responsive">
         <table class="table table-hover mb-0 align-middle">

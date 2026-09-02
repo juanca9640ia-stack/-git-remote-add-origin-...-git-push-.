@@ -347,3 +347,110 @@ class LineaCotizacion(models.Model):
     def clean(self):
         if self.cotizacion_id and not self.cotizacion.editable:
             raise ValidationError("No se puede modificar una cotización que ya fue enviada.")
+
+
+class CuentaCobro(models.Model):
+    """Documento de cobro alternativo a la factura, para clientes que no la requieren.
+
+    A diferencia de la Venta (que descuenta stock y factura con el NIT de la empresa),
+    la cuenta de cobro es un documento simple e independiente: no toca inventario y se
+    puede emitir a nombre de la empresa o de una persona natural (ej. un contratista).
+    """
+
+    EMPRESA = "empresa"
+    PERSONA_NATURAL = "persona_natural"
+    EMISOR_CHOICES = [
+        (EMPRESA, "La empresa"),
+        (PERSONA_NATURAL, "Persona natural"),
+    ]
+
+    BORRADOR = "borrador"
+    EMITIDA = "emitida"
+    PAGADA = "pagada"
+    ANULADA = "anulada"
+    ESTADO_CHOICES = [
+        (BORRADOR, "Borrador"),
+        (EMITIDA, "Emitida"),
+        (PAGADA, "Pagada"),
+        (ANULADA, "Anulada"),
+    ]
+
+    numero = models.CharField(max_length=20, unique=True, blank=True)
+    estado = models.CharField(max_length=12, choices=ESTADO_CHOICES, default=BORRADOR)
+    cliente = models.ForeignKey(Cliente, on_delete=models.PROTECT, related_name="cuentas_cobro")
+    venta = models.ForeignKey(
+        Venta, on_delete=models.SET_NULL, null=True, blank=True, related_name="cuentas_cobro",
+        help_text="Opcional: si esta cuenta de cobro corresponde a una venta ya registrada.",
+    )
+    emisor_tipo = models.CharField(max_length=16, choices=EMISOR_CHOICES, default=EMPRESA)
+    emisor_nombre = models.CharField(
+        "Nombre de quien cobra", max_length=150, blank=True,
+        help_text="Solo si se emite a nombre de una persona natural.",
+    )
+    emisor_documento = models.CharField(
+        "Cédula de quien cobra", max_length=30, blank=True,
+        help_text="Solo si se emite a nombre de una persona natural.",
+    )
+    concepto = models.TextField("Concepto", help_text="Descripción del servicio o motivo del cobro.")
+    valor = models.DecimalField(max_digits=12, decimal_places=2)
+    fecha = models.DateField("Fecha de expedición", default=timezone.localdate)
+    forma_pago = models.CharField(
+        max_length=100, blank=True, help_text="Ej. transferencia, efectivo, consignación.",
+    )
+    datos_pago = models.CharField(
+        "Datos de pago", max_length=200, blank=True,
+        help_text="Ej. banco, tipo y número de cuenta, si aplica.",
+    )
+    creado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="cuentas_cobro"
+    )
+    creado_en = models.DateTimeField(auto_now_add=True)
+    emitida_en = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        verbose_name = "Cuenta de cobro"
+        verbose_name_plural = "Cuentas de cobro"
+        ordering = ["-creado_en"]
+
+    def __str__(self):
+        return self.numero or f"Cuenta de cobro borrador #{self.pk}"
+
+    def get_absolute_url(self):
+        return reverse("ventas:cuenta_cobro_detalle", args=[self.pk])
+
+    def save(self, *args, **kwargs):
+        is_new = self._state.adding
+        super().save(*args, **kwargs)
+        if is_new and not self.numero:
+            self.numero = f"CC-{self.pk:06d}"
+            super().save(update_fields=["numero"])
+
+    @property
+    def editable(self):
+        return self.estado == self.BORRADOR
+
+    def clean(self):
+        if self.emisor_tipo == self.PERSONA_NATURAL and not (self.emisor_nombre and self.emisor_documento):
+            raise ValidationError(
+                "Ingresa el nombre y la cédula de la persona natural que emite la cuenta de cobro."
+            )
+
+    def emitir(self):
+        if self.estado != self.BORRADOR:
+            raise ValidationError("Solo una cuenta de cobro en borrador puede emitirse.")
+        self.full_clean()
+        self.estado = self.EMITIDA
+        self.emitida_en = timezone.now()
+        self.save(update_fields=["estado", "emitida_en"])
+
+    def marcar_pagada(self):
+        if self.estado != self.EMITIDA:
+            raise ValidationError("Solo una cuenta de cobro emitida puede marcarse como pagada.")
+        self.estado = self.PAGADA
+        self.save(update_fields=["estado"])
+
+    def anular(self):
+        if self.estado not in (self.BORRADOR, self.EMITIDA):
+            raise ValidationError("Esta cuenta de cobro ya no se puede anular.")
+        self.estado = self.ANULADA
+        self.save(update_fields=["estado"])

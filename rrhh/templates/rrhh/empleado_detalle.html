@@ -3,9 +3,15 @@
 {% block title %}{{ empleado.nombre_completo }}{% endblock %}
 {% block content %}
 <div class="d-flex justify-content-between align-items-start mb-4">
-    <div>
-        <h2 class="mb-0">{{ empleado.nombre_completo }}</h2>
-        <span class="text-muted">{{ empleado.cargo }} {% if empleado.departamento %}· {{ empleado.departamento }}{% endif %}</span>
+    <div class="d-flex align-items-center gap-3">
+        <span class="sap-avatar sap-avatar-lg">{{ empleado.nombre_completo|slice:":1"|upper }}</span>
+        <div>
+            <h2 class="mb-0">
+                {{ empleado.nombre_completo }}
+                {% if empleado.activo %}<span class="badge bg-success align-middle">Activo</span>{% else %}<span class="badge bg-secondary align-middle">Inactivo</span>{% endif %}
+            </h2>
+            <span class="text-muted">{{ empleado.cargo }} {% if empleado.departamento %}· {{ empleado.departamento }}{% endif %}</span>
+        </div>
     </div>
     <a href="{% url 'rrhh:empleado_editar' empleado.pk %}" class="btn btn-outline-secondary"><i class="bi bi-pencil me-1"></i>Editar</a>
 </div>

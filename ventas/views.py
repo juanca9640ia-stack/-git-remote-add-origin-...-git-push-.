@@ -11,9 +11,10 @@ from core.models import Empresa
 from inventario.models import Producto
 
 from .forms import (
-    ClienteForm, ClienteRapidoForm, CotizacionForm, LineaCotizacionFormSet, LineaVentaFormSet, VentaForm,
+    ClienteForm, ClienteRapidoForm, CotizacionForm, CuentaCobroForm, LineaCotizacionFormSet, LineaVentaFormSet,
+    VentaForm,
 )
-from .models import Cliente, Cotizacion, Venta
+from .models import Cliente, Cotizacion, CuentaCobro, Venta
 
 
 def _precios_producto_json():
@@ -297,4 +298,84 @@ def cotizacion_imprimir(request, pk):
     )
     return render(request, "ventas/cotizacion_pdf.html", {
         "cotizacion": cotizacion, "empresa": Empresa.get_solo(),
+    })
+
+
+@login_required
+def cuenta_cobro_lista(request):
+    cuentas = CuentaCobro.objects.select_related("cliente").all()
+    estado = request.GET.get("estado", "")
+    if estado:
+        cuentas = cuentas.filter(estado=estado)
+    return render(request, "ventas/cuenta_cobro_lista.html", {"cuentas": cuentas, "estado": estado})
+
+
+@login_required
+def cuenta_cobro_detalle(request, pk):
+    cuenta = get_object_or_404(CuentaCobro.objects.select_related("cliente", "venta", "creado_por"), pk=pk)
+    return render(request, "ventas/cuenta_cobro_detalle.html", {"cuenta": cuenta})
+
+
+@login_required
+def cuenta_cobro_form(request, pk=None):
+    cuenta = get_object_or_404(CuentaCobro, pk=pk) if pk else None
+    if cuenta and not cuenta.editable:
+        messages.error(request, "Esta cuenta de cobro ya no se puede editar.")
+        return redirect("ventas:cuenta_cobro_detalle", pk=cuenta.pk)
+
+    if request.method == "POST":
+        form = CuentaCobroForm(request.POST, instance=cuenta)
+        if form.is_valid():
+            obj = form.save(commit=False)
+            if not cuenta:
+                obj.creado_por = request.user
+            obj.save()
+            messages.success(request, f"Cuenta de cobro '{obj.numero}' guardada correctamente.")
+            return redirect("ventas:cuenta_cobro_detalle", pk=obj.pk)
+    else:
+        form = CuentaCobroForm(instance=cuenta)
+    return render(request, "ventas/cuenta_cobro_form.html", {"form": form, "cuenta": cuenta})
+
+
+@login_required
+def cuenta_cobro_emitir(request, pk):
+    cuenta = get_object_or_404(CuentaCobro, pk=pk)
+    if request.method == "POST":
+        try:
+            cuenta.emitir()
+            messages.success(request, f"Cuenta de cobro {cuenta.numero} emitida.")
+        except ValidationError as exc:
+            messages.error(request, "; ".join(exc.messages))
+    return redirect("ventas:cuenta_cobro_detalle", pk=cuenta.pk)
+
+
+@login_required
+def cuenta_cobro_marcar_pagada(request, pk):
+    cuenta = get_object_or_404(CuentaCobro, pk=pk)
+    if request.method == "POST":
+        try:
+            cuenta.marcar_pagada()
+            messages.success(request, f"Cuenta de cobro {cuenta.numero} marcada como pagada.")
+        except ValidationError as exc:
+            messages.error(request, "; ".join(exc.messages))
+    return redirect("ventas:cuenta_cobro_detalle", pk=cuenta.pk)
+
+
+@login_required
+def cuenta_cobro_anular(request, pk):
+    cuenta = get_object_or_404(CuentaCobro, pk=pk)
+    if request.method == "POST":
+        try:
+            cuenta.anular()
+            messages.success(request, f"Cuenta de cobro {cuenta.numero} anulada.")
+        except ValidationError as exc:
+            messages.error(request, "; ".join(exc.messages))
+    return redirect("ventas:cuenta_cobro_detalle", pk=cuenta.pk)
+
+
+@login_required
+def cuenta_cobro_imprimir(request, pk):
+    cuenta = get_object_or_404(CuentaCobro.objects.select_related("cliente", "venta"), pk=pk)
+    return render(request, "ventas/cuenta_cobro_pdf.html", {
+        "cuenta": cuenta, "empresa": Empresa.get_solo(),
     })
