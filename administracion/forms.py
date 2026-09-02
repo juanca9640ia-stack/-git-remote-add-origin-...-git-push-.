@@ -38,8 +38,14 @@ class UsuarioBaseForm(forms.ModelForm):
         model = User
         fields = ["username", "first_name", "last_name", "email", "is_active", "is_staff", "groups"]
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, empresa=None, **kwargs):
         super().__init__(*args, **kwargs)
+        if empresa is not None:
+            # Roles compartidos de plataforma + los personalizados de esta empresa —
+            # nunca los roles personalizados de otra empresa.
+            self.fields["groups"].queryset = Group.objects.filter(
+                Q(empresa_vinculo__isnull=True) | Q(empresa_vinculo__empresa=empresa)
+            )
         for name, field in self.fields.items():
             if name == "groups":
                 continue

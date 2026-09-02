@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Cambiar de empresa{% endblock %}
+{% block content %}
+<h2 class="mb-1">Cambiar de empresa</h2>
+<p class="text-muted mb-4">Estás viendo actualmente: <strong>{{ empresa.nombre }}</strong>.</p>
+
+<div class="card card-kpi" style="max-width:480px;">
+    <div class="list-group list-group-flush">
+        {% for e in empresas %}
+            <form method="post" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center p-0">
+                {% csrf_token %}
+                <input type="hidden" name="empresa_id" value="{{ e.pk }}">
+                <button type="submit" class="btn btn-link text-decoration-none text-start w-100 py-3 px-3 {% if e.pk == empresa.pk %}fw-bold{% endif %}">
+                    <i class="bi bi-building me-2"></i>{{ e.nombre }}
+                    {% if e.pk == empresa.pk %}<span class="badge bg-primary ms-2">Actual</span>{% endif %}
+                </button>
+            </form>
+        {% empty %}
+            <div class="list-group-item text-center text-muted py-4">No hay empresas activas</div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

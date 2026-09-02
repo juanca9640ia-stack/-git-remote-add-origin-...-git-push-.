@@ -14,12 +14,16 @@
             <tbody>
             {% for grupo in grupos %}
                 <tr>
-                    <td>{{ grupo.name }}</td>
+                    <td>
+                        {{ grupo.name }}
+                        {% if not grupo.es_propio %}<span class="badge bg-secondary">Compartido</span>{% endif %}
+                    </td>
                     <td>
                         <span class="text-muted small">{{ grupo.permissions.count }} permiso(s)</span>
                     </td>
                     <td class="text-end">{{ grupo.total_usuarios }}</td>
                     <td class="text-end">
+                        {% if grupo.es_propio %}
                         <div class="d-flex gap-1 justify-content-end">
                             <a href="{% url 'administracion:rol_editar' grupo.pk %}" class="btn btn-sm btn-outline-secondary">Editar</a>
                             <form method="post" action="{% url 'administracion:rol_eliminar' grupo.pk %}" onsubmit="return confirm('¿Eliminar el rol {{ grupo.name }}? Los usuarios que lo tengan lo perderán.');">
@@ -27,6 +31,9 @@
                                 <button type="submit" class="btn btn-sm btn-outline-danger">Eliminar</button>
                             </form>
                         </div>
+                        {% else %}
+                            <span class="text-muted small">Rol de plataforma</span>
+                        {% endif %}
                     </td>
                 </tr>
             {% empty %}

@@ -16,8 +16,10 @@ class ProductoForm(forms.ModelForm):
             "descripcion": forms.Textarea(attrs={"rows": 3}),
         }
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, empresa=None, **kwargs):
         super().__init__(*args, **kwargs)
+        if empresa is not None:
+            self.fields["categoria"].queryset = Categoria.objects.filter(empresa=empresa)
         for field in self.fields.values():
             css = "form-check-input" if isinstance(field.widget, forms.CheckboxInput) else "form-control"
             field.widget.attrs.setdefault("class", css)

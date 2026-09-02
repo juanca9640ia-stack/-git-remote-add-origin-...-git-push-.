@@ -1,6 +1,7 @@
 import uuid
 
 from django.conf import settings
+from django.contrib.auth.models import Group
 from django.core.validators import FileExtensionValidator
 from django.db import models
 from django.utils import timezone
@@ -101,3 +102,27 @@ class PerfilUsuario(models.Model):
 
     def __str__(self):
         return f"{self.usuario} · {self.empresa}"
+
+
+class GrupoEmpresa(models.Model):
+    """Dueño (empresa) de un rol personalizado, ya que auth.Group de Django es
+    global y no tiene noción de inquilino.
+
+    Los 7 roles de módulo que siembra `crear_grupos_permisos` (Administración,
+    Ventas, Compras, Inventario, Finanzas, Producción, RR.HH.) se dejan
+    deliberadamente SIN fila aquí: son plantillas compartidas por toda la
+    plataforma (solo otorgan acceso a un módulo, nunca a datos de otra
+    empresa, así que compartirlas no filtra información). Un rol personalizado
+    creado desde Administración > Roles sí queda vinculado a su empresa: solo
+    esa empresa puede verlo, editarlo o borrarlo.
+    """
+
+    grupo = models.OneToOneField(Group, on_delete=models.CASCADE, related_name="empresa_vinculo")
+    empresa = models.ForeignKey(Empresa, on_delete=models.CASCADE, related_name="roles")
+
+    class Meta:
+        verbose_name = "Rol de empresa"
+        verbose_name_plural = "Roles de empresa"
+
+    def __str__(self):
+        return f"{self.grupo.name} · {self.empresa}"

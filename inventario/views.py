@@ -56,7 +56,7 @@ def producto_detalle(request, pk):
 def producto_form(request, pk=None):
     producto = get_object_or_404(Producto, pk=pk, empresa=request.empresa) if pk else None
     if request.method == "POST":
-        form = ProductoForm(request.POST, instance=producto)
+        form = ProductoForm(request.POST, instance=producto, empresa=request.empresa)
         if form.is_valid():
             obj = form.save(commit=False)
             obj.empresa = request.empresa
@@ -66,7 +66,7 @@ def producto_form(request, pk=None):
             messages.success(request, f"Producto '{obj.nombre}' guardado correctamente.")
             return redirect("inventario:producto_detalle", pk=obj.pk)
     else:
-        form = ProductoForm(instance=producto)
+        form = ProductoForm(instance=producto, empresa=request.empresa)
     return render(request, "inventario/producto_form.html", {"form": form, "producto": producto})
 
 

@@ -4,7 +4,7 @@ from django.contrib.auth.models import Group, User
 from django.test import TestCase
 from django.urls import reverse
 
-from core.models import Empresa, PerfilUsuario
+from core.models import Empresa, GrupoEmpresa, PerfilUsuario
 from finanzas.models import CuentaPorCobrar
 from inventario.models import Categoria, MovimientoInventario, Producto
 from rrhh.models import Departamento, Empleado, Nomina
@@ -228,6 +228,7 @@ class RolTests(TestCase):
 
     def test_editar_rol_actualiza_modulos(self):
         grupo = Group.objects.create(name="Cajero")
+        GrupoEmpresa.objects.create(grupo=grupo, empresa_id=1)
         response = self.client.post(reverse("administracion:rol_editar", args=[grupo.pk]), {
             "nombre": "Cajero", "finanzas": "on",
         })
@@ -238,8 +239,17 @@ class RolTests(TestCase):
 
     def test_eliminar_rol(self):
         grupo = Group.objects.create(name="Temporal")
+        GrupoEmpresa.objects.create(grupo=grupo, empresa_id=1)
         self.client.post(reverse("administracion:rol_eliminar", args=[grupo.pk]))
         self.assertFalse(Group.objects.filter(pk=grupo.pk).exists())
+
+    def test_no_puede_editar_ni_eliminar_un_rol_compartido_de_plataforma(self):
+        grupo = Group.objects.create(name="Compartido de prueba")
+        response = self.client.get(reverse("administracion:rol_editar", args=[grupo.pk]))
+        self.assertEqual(response.status_code, 404)
+        response = self.client.post(reverse("administracion:rol_eliminar", args=[grupo.pk]))
+        self.assertEqual(response.status_code, 404)
+        self.assertTrue(Group.objects.filter(pk=grupo.pk).exists())
 
     def test_usuario_sin_staff_no_puede_gestionar_roles(self):
         self.client.logout()
@@ -267,3 +277,109 @@ class RolTests(TestCase):
         grupo = Group.objects.get(name="RRHH junior")
         modelos = set(grupo.permissions.values_list("content_type__model", flat=True))
         self.assertEqual(modelos, {"empleado", "departamento"})
+
+
+class CambiarEmpresaTests(TestCase):
+    def setUp(self):
+        self.empresa_b = Empresa.objects.create(nombre="Constructora Vecina S.A.S")
+        self.superadmin = User.objects.create_user(username="super1", password="ClaveSegura123")
+        PerfilUsuario.objects.create(usuario=self.superadmin, empresa_id=1, es_superadmin_plataforma=True)
+        self.normal = User.objects.create_user(username="normal_empresa", password="ClaveSegura123")
+        PerfilUsuario.objects.create(usuario=self.normal, empresa_id=1, es_superadmin_plataforma=False)
+
+    def test_usuario_normal_no_puede_cambiar_de_empresa(self):
+        self.client.force_login(self.normal)
+        response = self.client.get(reverse("administracion:cambiar_empresa"))
+        self.assertRedirects(response, reverse("dashboard"))
+
+    def test_superadmin_puede_cambiar_la_empresa_activa(self):
+        self.client.force_login(self.superadmin)
+        response = self.client.post(reverse("administracion:cambiar_empresa"), {"empresa_id": self.empresa_b.pk})
+        self.assertRedirects(response, reverse("dashboard"))
+        self.assertEqual(self.client.session["empresa_activa_id"], self.empresa_b.pk)
+
+
+class AislamientoMultiempresaTests(TestCase):
+    """Fase 0.4: un usuario de una empresa nunca debe ver ni poder tocar los datos de otra."""
+
+    def setUp(self):
+        self.empresa_a = Empresa.objects.get(pk=1)
+        self.empresa_b = Empresa.objects.create(nombre="Constructora Vecina S.A.S")
+
+        self.usuario_a = User.objects.create_superuser(username="admin_a", password="ClaveSegura123")
+        PerfilUsuario.objects.create(usuario=self.usuario_a, empresa=self.empresa_a)
+        self.usuario_b = User.objects.create_superuser(username="admin_b", password="ClaveSegura123")
+        PerfilUsuario.objects.create(usuario=self.usuario_b, empresa=self.empresa_b)
+
+        self.cliente_a = Cliente.objects.create(empresa=self.empresa_a, nombre="Cliente de A")
+        self.cliente_b = Cliente.objects.create(empresa=self.empresa_b, nombre="Cliente de B")
+
+        self.producto_a = Producto.objects.create(
+            empresa=self.empresa_a, sku="SKU-1", nombre="Producto de A", precio_venta=Decimal("10"),
+        )
+        self.producto_b = Producto.objects.create(
+            empresa=self.empresa_b, sku="SKU-1", nombre="Producto de B", precio_venta=Decimal("20"),
+        )
+
+        self.empleado_a = Empleado.objects.create(
+            empresa=self.empresa_a, nombre_completo="Empleado de A", documento="1", cargo="Obrero", telefono="1",
+        )
+        self.empleado_b = Empleado.objects.create(
+            empresa=self.empresa_b, nombre_completo="Empleado de B", documento="1", cargo="Obrero", telefono="1",
+        )
+
+        venta_a = Venta.objects.create(empresa=self.empresa_a, cliente=self.cliente_a)
+        LineaVenta.objects.create(
+            empresa=self.empresa_a, venta=venta_a, producto=self.producto_a, cantidad=1, precio_unitario=10,
+        )
+        self.venta_a = venta_a
+
+    def test_mismo_sku_en_dos_empresas_no_choca(self):
+        # Ambos productos usan "SKU-1" — solo es posible porque la unicidad es por empresa.
+        self.assertEqual(Producto.objects.filter(sku="SKU-1").count(), 2)
+
+    def test_mismo_documento_de_empleado_en_dos_empresas_no_choca(self):
+        self.assertEqual(Empleado.objects.filter(documento="1").count(), 2)
+
+    def test_lista_de_clientes_no_mezcla_empresas(self):
+        self.client.force_login(self.usuario_a)
+        response = self.client.get(reverse("ventas:cliente_lista"))
+        self.assertContains(response, "Cliente de A")
+        self.assertNotContains(response, "Cliente de B")
+
+    def test_no_se_puede_abrir_un_cliente_de_otra_empresa_por_url_directa(self):
+        self.client.force_login(self.usuario_a)
+        response = self.client.get(reverse("ventas:cliente_editar", args=[self.cliente_b.pk]))
+        self.assertEqual(response.status_code, 404)
+
+    def test_no_se_puede_abrir_una_venta_de_otra_empresa_por_url_directa(self):
+        self.client.force_login(self.usuario_b)
+        response = self.client.get(reverse("ventas:venta_detalle", args=[self.venta_a.pk]))
+        self.assertEqual(response.status_code, 404)
+
+    def test_no_se_puede_abrir_un_empleado_de_otra_empresa_por_url_directa(self):
+        self.client.force_login(self.usuario_a)
+        response = self.client.get(reverse("rrhh:empleado_detalle", args=[self.empleado_b.pk]))
+        self.assertEqual(response.status_code, 404)
+
+    def test_dashboard_solo_cuenta_los_productos_de_su_propia_empresa(self):
+        self.client.force_login(self.usuario_a)
+        response = self.client.get(reverse("dashboard"))
+        self.assertEqual(response.context["total_productos"], 1)
+
+    def test_lista_de_usuarios_no_mezcla_empresas(self):
+        self.client.force_login(self.usuario_a)
+        response = self.client.get(reverse("administracion:usuario_lista"))
+        self.assertContains(response, "admin_a")
+        self.assertNotContains(response, "admin_b")
+
+    def test_no_se_puede_editar_un_usuario_de_otra_empresa_por_url_directa(self):
+        self.client.force_login(self.usuario_a)
+        response = self.client.get(reverse("administracion:usuario_editar", args=[self.usuario_b.pk]))
+        self.assertEqual(response.status_code, 404)
+
+    def test_producto_form_de_a_no_ofrece_clientes_ni_productos_de_b(self):
+        self.client.force_login(self.usuario_a)
+        response = self.client.get(reverse("ventas:venta_crear"))
+        self.assertContains(response, "Cliente de A")
+        self.assertNotContains(response, "Cliente de B")

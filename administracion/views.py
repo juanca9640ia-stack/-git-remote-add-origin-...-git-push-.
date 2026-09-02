@@ -1,10 +1,11 @@
 from django.contrib import messages
 from django.contrib.admin.views.decorators import staff_member_required
+from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import Group, User
 from django.db.models import Count, Q
 from django.shortcuts import get_object_or_404, redirect, render
 
-from core.models import Empresa, PerfilUsuario
+from core.models import Empresa, GrupoEmpresa, PerfilUsuario
 from finanzas.models import PagoCliente, PagoProveedor
 from inventario.models import MovimientoInventario
 from rrhh.models import Nomina
@@ -16,6 +17,25 @@ from .forms import (
 
 LIMITE_POR_FUENTE = 60
 LIMITE_TOTAL = 150
+
+
+@login_required
+def cambiar_empresa(request):
+    """Selector de empresa activa, solo para superadministradores de la plataforma."""
+    perfil = getattr(request.user, "perfil", None)
+    if not perfil or not perfil.es_superadmin_plataforma:
+        messages.error(request, "No tienes permiso para cambiar de empresa.")
+        return redirect("dashboard")
+
+    if request.method == "POST":
+        empresa = get_object_or_404(Empresa, pk=request.POST.get("empresa_id"))
+        request.session["empresa_activa_id"] = empresa.pk
+        messages.success(request, f"Ahora estás viendo los datos de '{empresa.nombre}'.")
+        return redirect("dashboard")
+
+    return render(request, "administracion/cambiar_empresa.html", {
+        "empresas": Empresa.objects.filter(activa=True).order_by("nombre"),
+    })
 
 
 @staff_member_required(login_url="login")
@@ -44,14 +64,14 @@ def usuario_lista(request):
 @staff_member_required(login_url="login")
 def usuario_crear(request):
     if request.method == "POST":
-        form = UsuarioCrearForm(request.POST)
+        form = UsuarioCrearForm(request.POST, empresa=request.empresa)
         if form.is_valid():
             usuario = form.save()
             PerfilUsuario.objects.get_or_create(usuario=usuario, defaults={"empresa": request.empresa})
             messages.success(request, f"Usuario '{usuario.username}' creado correctamente.")
             return redirect("administracion:usuario_lista")
     else:
-        form = UsuarioCrearForm()
+        form = UsuarioCrearForm(empresa=request.empresa)
     return render(request, "administracion/usuario_form.html", {"form": form, "usuario": None})
 
 
@@ -59,7 +79,7 @@ def usuario_crear(request):
 def usuario_editar(request, pk):
     usuario = get_object_or_404(User, pk=pk, perfil__empresa=request.empresa)
     if request.method == "POST":
-        form = UsuarioEditarForm(request.POST, instance=usuario)
+        form = UsuarioEditarForm(request.POST, instance=usuario, empresa=request.empresa)
         if form.is_valid():
             if usuario == request.user and not form.cleaned_data["is_active"]:
                 messages.error(request, "No puedes desactivar tu propia cuenta.")
@@ -70,7 +90,7 @@ def usuario_editar(request, pk):
                 messages.success(request, "Usuario actualizado.")
                 return redirect("administracion:usuario_lista")
     else:
-        form = UsuarioEditarForm(instance=usuario)
+        form = UsuarioEditarForm(instance=usuario, empresa=request.empresa)
     return render(request, "administracion/usuario_form.html", {"form": form, "usuario": usuario})
 
 
@@ -154,13 +174,23 @@ def auditoria_lista(request):
 
 @staff_member_required(login_url="login")
 def rol_lista(request):
-    grupos = Group.objects.annotate(total_usuarios=Count("user")).order_by("name")
+    # Roles compartidos de plataforma (sin empresa vinculada, ej. "Ventas", "Administración")
+    # + los roles personalizados que creó esta empresa.
+    grupos = (
+        Group.objects.filter(Q(empresa_vinculo__isnull=True) | Q(empresa_vinculo__empresa=request.empresa))
+        .annotate(total_usuarios=Count("user")).order_by("name")
+    )
+    propios = set(GrupoEmpresa.objects.filter(empresa=request.empresa).values_list("grupo_id", flat=True))
+    for grupo in grupos:
+        # Un rol compartido de plataforma (Ventas, Administración, ...) no se puede
+        # editar ni eliminar desde aquí, solo asignar.
+        grupo.es_propio = grupo.pk in propios
     return render(request, "administracion/rol_lista.html", {"grupos": grupos})
 
 
 @staff_member_required(login_url="login")
 def rol_form(request, pk=None):
-    grupo = get_object_or_404(Group, pk=pk) if pk else None
+    grupo = get_object_or_404(Group, pk=pk, empresa_vinculo__empresa=request.empresa) if pk else None
     permisos_actuales = set()
     if grupo:
         permisos_actuales = set(grupo.permissions.values_list("id", flat=True))
@@ -173,10 +203,11 @@ def rol_form(request, pk=None):
             if grupo:
                 duplicados = duplicados.exclude(pk=grupo.pk)
             if duplicados.exists():
-                form.add_error("nombre", "Ya existe un rol con ese nombre.")
+                form.add_error("nombre", "Ya existe un rol con ese nombre (los nombres de rol son únicos en toda la plataforma).")
             else:
                 if grupo is None:
                     grupo = Group.objects.create(name=nombre)
+                    GrupoEmpresa.objects.create(grupo=grupo, empresa=request.empresa)
                 else:
                     grupo.name = nombre
                     grupo.save(update_fields=["name"])
@@ -200,7 +231,7 @@ def rol_form(request, pk=None):
 
 @staff_member_required(login_url="login")
 def rol_eliminar(request, pk):
-    grupo = get_object_or_404(Group, pk=pk)
+    grupo = get_object_or_404(Group, pk=pk, empresa_vinculo__empresa=request.empresa)
     if request.method == "POST":
         nombre = grupo.name
         grupo.delete()
