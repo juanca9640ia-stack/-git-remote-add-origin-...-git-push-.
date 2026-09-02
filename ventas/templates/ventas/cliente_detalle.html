@@ -168,6 +168,59 @@
                 </table>
             </div>
         </div>
+
+        {% if perms.proyectos %}
+        <div class="card card-kpi mt-3">
+            <div class="card-header bg-white fw-bold d-flex justify-content-between">
+                Proyectos
+                <a href="{% url 'proyectos:proyecto_lista' %}" class="small">Ver todos</a>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead><tr><th>#</th><th>Nombre</th><th>Estado</th><th class="text-end">Avance</th></tr></thead>
+                    <tbody>
+                    {% for p in proyectos %}
+                        <tr onclick="window.location='{% url 'proyectos:proyecto_detalle' p.pk %}'" style="cursor:pointer">
+                            <td>{{ p.numero }}</td>
+                            <td>{{ p.nombre }}</td>
+                            <td>
+                                {% if p.estado == "en_curso" %}<span class="badge bg-info">En curso</span>
+                                {% elif p.estado == "finalizado" %}<span class="badge bg-success">Finalizado</span>
+                                {% elif p.estado == "pausado" %}<span class="badge bg-warning text-dark">Pausado</span>
+                                {% elif p.estado == "cancelado" %}<span class="badge bg-secondary">Cancelado</span>
+                                {% else %}<span class="badge bg-light text-dark border">Planificación</span>{% endif %}
+                            </td>
+                            <td class="text-end">{{ p.porcentaje_avance }}%</td>
+                        </tr>
+                    {% empty %}
+                        <tr><td colspan="4" class="text-center text-muted py-3">Sin proyectos registrados</td></tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="card card-kpi mt-3">
+            <div class="card-header bg-white fw-bold">Pagos recibidos</div>
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead><tr><th>Factura</th><th>Método</th><th>Fecha</th><th class="text-end">Valor</th></tr></thead>
+                    <tbody>
+                    {% for pago in pagos %}
+                        <tr onclick="window.location='{% url 'finanzas:cxc_detalle' pago.cuenta_id %}'" style="cursor:pointer">
+                            <td>{{ pago.cuenta.venta.numero }}</td>
+                            <td>{{ pago.get_metodo_display }}</td>
+                            <td>{{ pago.creado_en|date:"d/m/Y" }}</td>
+                            <td class="text-end">{{ pago.monto|cop }}</td>
+                        </tr>
+                    {% empty %}
+                        <tr><td colspan="4" class="text-center text-muted py-3">Sin pagos registrados</td></tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
     </div>
 </div>
 {% endblock %}

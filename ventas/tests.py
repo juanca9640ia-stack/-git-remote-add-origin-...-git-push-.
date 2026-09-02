@@ -532,3 +532,60 @@ class FlujoIntegracionDocumentosTests(TestCase):
         cuenta = CuentaCobro.objects.get(cliente=self.cliente)
         self.assertRedirects(resp, f"/ventas/cuentas-cobro/{cuenta.pk}/")
         self.assertEqual(cuenta.cotizacion_id, self.cotizacion.pk)
+
+
+class VentaImprimirTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_superuser(username="viewer", password="clave-segura-123", email="")
+        self.client.force_login(self.user)
+        categoria = Categoria.objects.create(nombre="General")
+        self.producto = Producto.objects.create(
+            sku="SKU-1", nombre="Producto de prueba", categoria=categoria,
+            precio_costo=Decimal("5.00"), precio_venta=Decimal("100000.00"), stock_actual=10,
+        )
+        self.cliente = Cliente.objects.create(nombre="Cliente de prueba")
+        self.venta = Venta.objects.create(cliente=self.cliente)
+        LineaVenta.objects.create(venta=self.venta, producto=self.producto, cantidad=1, precio_unitario=Decimal("100000.00"))
+        self.venta.confirmar()
+        self.venta.facturar("3001")
+
+    def test_muestra_numero_de_factura_y_totales(self):
+        resp = self.client.get(f"/ventas/ventas/{self.venta.pk}/imprimir/")
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "FACTURA DE VENTA")
+        self.assertContains(resp, "3001")
+        self.assertContains(resp, "IVA (19")
+
+
+class ClienteDetalle360Tests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_superuser(username="gerente360", password="clave-segura-123", email="")
+        self.client.force_login(self.user)
+        self.cliente = Cliente.objects.create(nombre="Cliente 360")
+
+    def test_muestra_proyectos_del_cliente(self):
+        from proyectos.models import Proyecto
+
+        proyecto = Proyecto.objects.create(nombre="Obra del cliente", cliente=self.cliente)
+        resp = self.client.get(f"/ventas/clientes/{self.cliente.pk}/")
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn(proyecto, list(resp.context["proyectos"]))
+
+    def test_muestra_pagos_recibidos(self):
+        from finanzas.models import CuentaPorCobrar, PagoCliente
+
+        categoria = Categoria.objects.create(nombre="General")
+        producto = Producto.objects.create(
+            sku="SKU-1", nombre="Producto", categoria=categoria,
+            precio_costo=Decimal("5"), precio_venta=Decimal("100000"), stock_actual=10,
+        )
+        venta = Venta.objects.create(cliente=self.cliente)
+        LineaVenta.objects.create(venta=venta, producto=producto, cantidad=1, precio_unitario=Decimal("100000"))
+        venta.confirmar()
+        cuenta = CuentaPorCobrar.objects.get(venta=venta)
+        cuenta.registrar_pago(monto=Decimal("50000"), metodo="efectivo", referencia="", usuario=self.user)
+
+        resp = self.client.get(f"/ventas/clientes/{self.cliente.pk}/")
+        pagos = list(resp.context["pagos"])
+        self.assertEqual(len(pagos), 1)
+        self.assertEqual(pagos[0].monto, Decimal("50000"))

@@ -80,6 +80,9 @@
 {% endif %}
 
 <div class="mt-4 d-flex gap-2">
+    <a href="{% url 'ventas:venta_imprimir' venta.pk %}" target="_blank" class="btn btn-outline-secondary">
+        <i class="bi bi-printer me-1"></i>Vista previa / PDF
+    </a>
     {% if venta.editable %}
         <a href="{% url 'ventas:venta_editar' venta.pk %}" class="btn btn-outline-secondary">Editar</a>
         <form method="post" action="{% url 'ventas:venta_confirmar' venta.pk %}" onsubmit="return confirm('¿Confirmar esta venta? Esto descontará el stock del inventario.');">

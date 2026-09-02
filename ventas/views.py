@@ -40,8 +40,8 @@ def cliente_lista(request):
 @login_required
 def cliente_detalle(request, pk):
     """Vista 360°: todo lo que hay que saber de un cliente en una sola pantalla
-    (compras, cotizaciones, cartera y cuentas de cobro)."""
-    from finanzas.models import CuentaPorCobrar
+    (compras, cotizaciones, proyectos, cartera, pagos, cuentas de cobro y documentos)."""
+    from finanzas.models import CuentaPorCobrar, PagoCliente
 
     cliente = get_object_or_404(Cliente, pk=pk, empresa=request.empresa)
 
@@ -66,6 +66,10 @@ def cliente_detalle(request, pk):
 
     cuentas_cobro = CuentaCobro.objects.filter(cliente=cliente, empresa=request.empresa).order_by("-creado_en")
 
+    pagos = PagoCliente.objects.filter(
+        cuenta__venta__cliente=cliente, empresa=request.empresa
+    ).select_related("cuenta__venta").order_by("-creado_en")
+
     context = {
         "cliente": cliente,
         "total_facturado": total_facturado,
@@ -79,6 +83,9 @@ def cliente_detalle(request, pk):
         "cxc_vencidas": cxc_vencidas,
         "cuentas_cobro": cuentas_cobro[:10],
         "documentos": cliente.documentos.all()[:10],
+        "proyectos": cliente.proyectos.all()[:10],
+        "proyectos_count": cliente.proyectos.count(),
+        "pagos": pagos[:10],
     }
     return render(request, "ventas/cliente_detalle.html", context)
 
@@ -132,6 +139,15 @@ def venta_detalle(request, pk):
     return render(request, "ventas/venta_detalle.html", {
         "venta": venta, "sugerencia_factura": sugerencia_factura,
     })
+
+
+@login_required
+def venta_imprimir(request, pk):
+    venta = get_object_or_404(
+        Venta.objects.select_related("cliente", "vendedor", "proyecto").prefetch_related("lineas__producto"),
+        pk=pk, empresa=request.empresa,
+    )
+    return render(request, "ventas/venta_pdf.html", {"venta": venta, "empresa": request.empresa})
 
 
 @login_required

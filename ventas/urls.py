@@ -19,6 +19,7 @@ urlpatterns = [
     path("ventas/<int:pk>/anular/", views.venta_anular, name="venta_anular"),
     path("ventas/<int:pk>/facturar/", views.venta_facturar, name="venta_facturar"),
     path("ventas/<int:pk>/corregir-factura/", views.venta_corregir_factura, name="venta_corregir_factura"),
+    path("ventas/<int:pk>/imprimir/", views.venta_imprimir, name="venta_imprimir"),
     path("cotizaciones/", views.cotizacion_lista, name="cotizacion_lista"),
     path("cotizaciones/nueva/", views.cotizacion_crear, name="cotizacion_crear"),
     path("cotizaciones/<int:pk>/", views.cotizacion_detalle, name="cotizacion_detalle"),
