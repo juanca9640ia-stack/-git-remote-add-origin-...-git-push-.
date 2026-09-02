@@ -7,7 +7,6 @@ from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
-from core.models import Empresa
 from inventario.models import Producto
 
 from .forms import (
@@ -297,7 +296,7 @@ def cotizacion_imprimir(request, pk):
         Cotizacion.objects.select_related("cliente", "vendedor").prefetch_related("lineas__producto"), pk=pk
     )
     return render(request, "ventas/cotizacion_pdf.html", {
-        "cotizacion": cotizacion, "empresa": Empresa.get_solo(),
+        "cotizacion": cotizacion, "empresa": request.empresa,
     })
 
 
@@ -377,5 +376,5 @@ def cuenta_cobro_anular(request, pk):
 def cuenta_cobro_imprimir(request, pk):
     cuenta = get_object_or_404(CuentaCobro.objects.select_related("cliente", "venta"), pk=pk)
     return render(request, "ventas/cuenta_cobro_pdf.html", {
-        "cuenta": cuenta, "empresa": Empresa.get_solo(),
+        "cuenta": cuenta, "empresa": request.empresa,
     })

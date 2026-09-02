@@ -10,6 +10,10 @@ from inventario.models import MovimientoInventario, Producto, registrar_movimien
 
 
 class Proveedor(models.Model):
+    empresa = models.ForeignKey(
+        "core.Empresa", on_delete=models.PROTECT, default=1, related_name="+",
+        help_text="Inquilino (empresa) al que pertenece este registro.",
+    )
     nombre = models.CharField(max_length=150)
     nit = models.CharField("NIT/Documento", max_length=30, blank=True)
     email = models.EmailField(blank=True)
@@ -38,6 +42,10 @@ class Compra(models.Model):
         (ANULADA, "Anulada"),
     ]
 
+    empresa = models.ForeignKey(
+        "core.Empresa", on_delete=models.PROTECT, default=1, related_name="+",
+        help_text="Inquilino (empresa) al que pertenece este registro.",
+    )
     numero = models.CharField(max_length=20, unique=True, blank=True)
     proveedor = models.ForeignKey(Proveedor, on_delete=models.PROTECT, related_name="compras")
     estado = models.CharField(max_length=12, choices=ESTADO_CHOICES, default=BORRADOR)
@@ -134,6 +142,10 @@ class Compra(models.Model):
 
 
 class LineaCompra(models.Model):
+    empresa = models.ForeignKey(
+        "core.Empresa", on_delete=models.PROTECT, default=1, related_name="+",
+        help_text="Inquilino (empresa) al que pertenece este registro.",
+    )
     compra = models.ForeignKey(Compra, on_delete=models.CASCADE, related_name="lineas")
     producto = models.ForeignKey(Producto, on_delete=models.PROTECT, related_name="lineas_compra")
     cantidad = models.PositiveIntegerField(default=1)

@@ -39,6 +39,10 @@ def rango_periodo(periodo):
 
 
 class Departamento(models.Model):
+    empresa = models.ForeignKey(
+        "core.Empresa", on_delete=models.PROTECT, default=1, related_name="+",
+        help_text="Inquilino (empresa) al que pertenece este registro.",
+    )
     nombre = models.CharField(max_length=100, unique=True)
     descripcion = models.TextField(blank=True)
 
@@ -57,6 +61,10 @@ class Empleado(models.Model):
         (PAGO_DIA, "Por día trabajado"),
     ]
 
+    empresa = models.ForeignKey(
+        "core.Empresa", on_delete=models.PROTECT, default=1, related_name="+",
+        help_text="Inquilino (empresa) al que pertenece este registro.",
+    )
     usuario = models.OneToOneField(
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="empleado"
     )
@@ -105,6 +113,10 @@ class Asistencia(models.Model):
         (VACACIONES, "Vacaciones"),
     ]
 
+    empresa = models.ForeignKey(
+        "core.Empresa", on_delete=models.PROTECT, default=1, related_name="+",
+        help_text="Inquilino (empresa) al que pertenece este registro.",
+    )
     empleado = models.ForeignKey(Empleado, on_delete=models.CASCADE, related_name="asistencias")
     fecha = models.DateField(default=timezone.localdate)
     hora_entrada = models.TimeField(null=True, blank=True)
@@ -139,6 +151,10 @@ class Nomina(models.Model):
         (PROCESADA, "Procesada"),
     ]
 
+    empresa = models.ForeignKey(
+        "core.Empresa", on_delete=models.PROTECT, default=1, related_name="+",
+        help_text="Inquilino (empresa) al que pertenece este registro.",
+    )
     periodo = models.CharField(
         max_length=8, unique=True,
         help_text="Mensual: AAAA-MM (ej. 2026-08). Semanal: AAAA-Www (ej. 2026-W32).",
@@ -203,6 +219,10 @@ class Nomina(models.Model):
 
 
 class DetalleNomina(models.Model):
+    empresa = models.ForeignKey(
+        "core.Empresa", on_delete=models.PROTECT, default=1, related_name="+",
+        help_text="Inquilino (empresa) al que pertenece este registro.",
+    )
     nomina = models.ForeignKey(Nomina, on_delete=models.CASCADE, related_name="detalles")
     empleado = models.ForeignKey(Empleado, on_delete=models.PROTECT, related_name="detalles_nomina")
     salario_base = models.DecimalField(max_digits=12, decimal_places=2)
@@ -258,6 +278,10 @@ class Prestamo(models.Model):
         (PAGADO, "Pagado"),
     ]
 
+    empresa = models.ForeignKey(
+        "core.Empresa", on_delete=models.PROTECT, default=1, related_name="+",
+        help_text="Inquilino (empresa) al que pertenece este registro.",
+    )
     empleado = models.ForeignKey(Empleado, on_delete=models.PROTECT, related_name="prestamos")
     monto = models.DecimalField(max_digits=12, decimal_places=2)
     saldo_pendiente = models.DecimalField(max_digits=12, decimal_places=2)
@@ -301,6 +325,10 @@ class Prestamo(models.Model):
 
 
 class AbonoPrestamo(models.Model):
+    empresa = models.ForeignKey(
+        "core.Empresa", on_delete=models.PROTECT, default=1, related_name="+",
+        help_text="Inquilino (empresa) al que pertenece este registro.",
+    )
     prestamo = models.ForeignKey(Prestamo, on_delete=models.CASCADE, related_name="abonos")
     nomina = models.ForeignKey(
         Nomina, on_delete=models.SET_NULL, null=True, blank=True, related_name="abonos_prestamo"

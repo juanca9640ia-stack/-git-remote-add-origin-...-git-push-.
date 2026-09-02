@@ -4,7 +4,7 @@ from django.contrib.auth.models import Group, User
 from django.test import TestCase
 from django.urls import reverse
 
-from core.models import Empresa
+from core.models import Empresa, PerfilUsuario
 from finanzas.models import CuentaPorCobrar
 from inventario.models import Categoria, MovimientoInventario, Producto
 from rrhh.models import Departamento, Empleado, Nomina
@@ -15,6 +15,8 @@ class UsuarioListaPermisosTests(TestCase):
     def setUp(self):
         self.staff = User.objects.create_user(username="staff1", password="ClaveSegura123", is_staff=True)
         self.no_staff = User.objects.create_user(username="normal1", password="ClaveSegura123", is_staff=False)
+        PerfilUsuario.objects.create(usuario=self.staff, empresa_id=1)
+        PerfilUsuario.objects.create(usuario=self.no_staff, empresa_id=1)
 
     def test_anonimo_redirige_a_login(self):
         response = self.client.get(reverse("administracion:usuario_lista"))

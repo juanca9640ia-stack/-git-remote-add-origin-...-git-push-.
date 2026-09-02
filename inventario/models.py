@@ -5,6 +5,10 @@ from django.urls import reverse
 
 
 class Categoria(models.Model):
+    empresa = models.ForeignKey(
+        "core.Empresa", on_delete=models.PROTECT, default=1, related_name="+",
+        help_text="Inquilino (empresa) al que pertenece este registro.",
+    )
     nombre = models.CharField(max_length=100, unique=True)
     descripcion = models.TextField(blank=True)
 
@@ -25,6 +29,10 @@ class Producto(models.Model):
         (SERVICIO, "Servicio"),
     ]
 
+    empresa = models.ForeignKey(
+        "core.Empresa", on_delete=models.PROTECT, default=1, related_name="+",
+        help_text="Inquilino (empresa) al que pertenece este registro.",
+    )
     sku = models.CharField("SKU", max_length=30, unique=True)
     nombre = models.CharField(max_length=150)
     descripcion = models.TextField(blank=True)
@@ -86,6 +94,10 @@ class MovimientoInventario(models.Model):
         (MOTIVO_PRODUCCION, "Producción"),
     ]
 
+    empresa = models.ForeignKey(
+        "core.Empresa", on_delete=models.PROTECT, default=1, related_name="+",
+        help_text="Inquilino (empresa) al que pertenece este registro.",
+    )
     producto = models.ForeignKey(Producto, on_delete=models.PROTECT, related_name="movimientos")
     tipo = models.CharField(max_length=10, choices=TIPO_CHOICES)
     motivo = models.CharField(max_length=15, choices=MOTIVO_CHOICES, default=MOTIVO_AJUSTE)

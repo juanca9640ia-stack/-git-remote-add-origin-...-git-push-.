@@ -28,6 +28,10 @@ class CuentaPorCobrar(models.Model):
         (ANULADA, "Anulada"),
     ]
 
+    empresa = models.ForeignKey(
+        "core.Empresa", on_delete=models.PROTECT, default=1, related_name="+",
+        help_text="Inquilino (empresa) al que pertenece este registro.",
+    )
     venta = models.OneToOneField(Venta, on_delete=models.PROTECT, related_name="cuenta_por_cobrar")
     monto_total = models.DecimalField(max_digits=12, decimal_places=2)
     saldo_pendiente = models.DecimalField(max_digits=12, decimal_places=2)
@@ -73,6 +77,10 @@ class CuentaPorCobrar(models.Model):
 
 
 class PagoCliente(models.Model):
+    empresa = models.ForeignKey(
+        "core.Empresa", on_delete=models.PROTECT, default=1, related_name="+",
+        help_text="Inquilino (empresa) al que pertenece este registro.",
+    )
     cuenta = models.ForeignKey(CuentaPorCobrar, on_delete=models.PROTECT, related_name="pagos")
     monto = models.DecimalField(max_digits=12, decimal_places=2)
     metodo = models.CharField(max_length=20, choices=METODO_PAGO_CHOICES, default="efectivo")
@@ -103,6 +111,10 @@ class CuentaPorPagar(models.Model):
         (ANULADA, "Anulada"),
     ]
 
+    empresa = models.ForeignKey(
+        "core.Empresa", on_delete=models.PROTECT, default=1, related_name="+",
+        help_text="Inquilino (empresa) al que pertenece este registro.",
+    )
     compra = models.OneToOneField(
         Compra, on_delete=models.PROTECT, related_name="cuenta_por_pagar", null=True, blank=True
     )
@@ -161,6 +173,10 @@ class CuentaPorPagar(models.Model):
 
 
 class PagoProveedor(models.Model):
+    empresa = models.ForeignKey(
+        "core.Empresa", on_delete=models.PROTECT, default=1, related_name="+",
+        help_text="Inquilino (empresa) al que pertenece este registro.",
+    )
     cuenta = models.ForeignKey(CuentaPorPagar, on_delete=models.PROTECT, related_name="pagos")
     monto = models.DecimalField(max_digits=12, decimal_places=2)
     metodo = models.CharField(max_length=20, choices=METODO_PAGO_CHOICES, default="efectivo")

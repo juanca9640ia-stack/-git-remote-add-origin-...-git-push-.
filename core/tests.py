@@ -3,6 +3,29 @@ from django.contrib.auth.models import Group, Permission, User
 from django.test import TestCase
 from django.urls import reverse
 
+from compras.models import Proveedor
+from core.models import Empresa
+from inventario.models import Categoria
+from rrhh.models import Departamento
+from ventas.models import Cliente
+
+
+class MultiempresaCimientoTests(TestCase):
+    """Fase 0.1: todo modelo de negocio pertenece a una empresa (inquilino), y el
+    registro semilla (Inversiones Jasda, pk=1) debe existir siempre tras migrar."""
+
+    def test_empresa_semilla_existe_tras_migrar(self):
+        self.assertTrue(Empresa.objects.filter(pk=1).exists())
+
+    def test_registros_nuevos_quedan_en_la_empresa_semilla_por_defecto(self):
+        cliente = Cliente.objects.create(nombre="Cliente de prueba")
+        proveedor = Proveedor.objects.create(nombre="Proveedor de prueba")
+        categoria = Categoria.objects.create(nombre="Categoría de prueba")
+        departamento = Departamento.objects.create(nombre="Departamento de prueba")
+
+        for objeto in (cliente, proveedor, categoria, departamento):
+            self.assertEqual(objeto.empresa_id, 1)
+
 
 class ModuloAccesoMiddlewareTests(TestCase):
     def setUp(self):

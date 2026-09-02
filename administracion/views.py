@@ -4,7 +4,7 @@ from django.contrib.auth.models import Group, User
 from django.db.models import Count, Q
 from django.shortcuts import get_object_or_404, redirect, render
 
-from core.models import Empresa
+from core.models import Empresa, PerfilUsuario
 from finanzas.models import PagoCliente, PagoProveedor
 from inventario.models import MovimientoInventario
 from rrhh.models import Nomina
@@ -20,7 +20,7 @@ LIMITE_TOTAL = 150
 
 @staff_member_required(login_url="login")
 def empresa_editar(request):
-    empresa = Empresa.get_solo()
+    empresa = request.empresa
     if request.method == "POST":
         form = EmpresaForm(request.POST, request.FILES, instance=empresa)
         if form.is_valid():
@@ -35,7 +35,7 @@ def empresa_editar(request):
 @staff_member_required(login_url="login")
 def usuario_lista(request):
     query = request.GET.get("q", "")
-    usuarios = User.objects.prefetch_related("groups").all()
+    usuarios = User.objects.filter(perfil__empresa=request.empresa).prefetch_related("groups")
     if query:
         usuarios = usuarios.filter(Q(username__icontains=query) | Q(email__icontains=query))
     return render(request, "administracion/usuario_lista.html", {"usuarios": usuarios, "query": query})
@@ -47,6 +47,7 @@ def usuario_crear(request):
         form = UsuarioCrearForm(request.POST)
         if form.is_valid():
             usuario = form.save()
+            PerfilUsuario.objects.get_or_create(usuario=usuario, defaults={"empresa": request.empresa})
             messages.success(request, f"Usuario '{usuario.username}' creado correctamente.")
             return redirect("administracion:usuario_lista")
     else:

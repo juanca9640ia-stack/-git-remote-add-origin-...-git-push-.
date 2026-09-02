@@ -10,6 +10,10 @@ from inventario.models import MovimientoInventario, Producto, registrar_movimien
 class ListaMateriales(models.Model):
     """Receta: qué insumos y en qué cantidad se necesitan para producir 1 unidad del producto terminado."""
 
+    empresa = models.ForeignKey(
+        "core.Empresa", on_delete=models.PROTECT, default=1, related_name="+",
+        help_text="Inquilino (empresa) al que pertenece este registro.",
+    )
     producto = models.OneToOneField(Producto, on_delete=models.CASCADE, related_name="lista_materiales")
     notas = models.TextField(blank=True)
     creado_en = models.DateTimeField(auto_now_add=True)
@@ -26,6 +30,10 @@ class ListaMateriales(models.Model):
 
 
 class ComponenteBOM(models.Model):
+    empresa = models.ForeignKey(
+        "core.Empresa", on_delete=models.PROTECT, default=1, related_name="+",
+        help_text="Inquilino (empresa) al que pertenece este registro.",
+    )
     lista = models.ForeignKey(ListaMateriales, on_delete=models.CASCADE, related_name="componentes")
     insumo = models.ForeignKey(Producto, on_delete=models.PROTECT, related_name="usado_en_recetas")
     cantidad_por_unidad = models.PositiveIntegerField(default=1)
@@ -53,6 +61,10 @@ class OrdenProduccion(models.Model):
         (ANULADA, "Anulada"),
     ]
 
+    empresa = models.ForeignKey(
+        "core.Empresa", on_delete=models.PROTECT, default=1, related_name="+",
+        help_text="Inquilino (empresa) al que pertenece este registro.",
+    )
     numero = models.CharField(max_length=20, unique=True, blank=True)
     producto = models.ForeignKey(Producto, on_delete=models.PROTECT, related_name="ordenes_produccion")
     cantidad = models.PositiveIntegerField(default=1)
@@ -175,6 +187,10 @@ class OrdenProduccion(models.Model):
 class ComponenteOrdenProduccion(models.Model):
     """Snapshot del consumo de insumos requerido por una orden, tomado de la receta al crearla."""
 
+    empresa = models.ForeignKey(
+        "core.Empresa", on_delete=models.PROTECT, default=1, related_name="+",
+        help_text="Inquilino (empresa) al que pertenece este registro.",
+    )
     orden = models.ForeignKey(OrdenProduccion, on_delete=models.CASCADE, related_name="componentes")
     insumo = models.ForeignKey(Producto, on_delete=models.PROTECT, related_name="consumido_en_ordenes")
     cantidad_requerida = models.PositiveIntegerField()

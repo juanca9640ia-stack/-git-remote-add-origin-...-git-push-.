@@ -9,7 +9,6 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
 from core.decorators import permiso_requerido, permiso_requerido_alguno
-from core.models import Empresa
 
 from .forms import (
     AsistenciaForm, DepartamentoForm, DetalleNominaFormSet, EmpleadoForm, NominaForm, PrestamoForm,
@@ -331,8 +330,7 @@ def detalle_nomina_recibo(request, pk):
         messages.error(request, "No tienes permiso para acceder a esta sección. Contacta a un administrador.")
         return redirect("dashboard")
 
-    empresa = Empresa.get_solo()
-    return render(request, "rrhh/recibo_nomina.html", {"detalle": detalle, "empresa": empresa})
+    return render(request, "rrhh/recibo_nomina.html", {"detalle": detalle, "empresa": request.empresa})
 
 
 @login_required

@@ -15,6 +15,10 @@ def _fecha_validez_por_defecto():
 
 
 class Cliente(models.Model):
+    empresa = models.ForeignKey(
+        "core.Empresa", on_delete=models.PROTECT, default=1, related_name="+",
+        help_text="Inquilino (empresa) al que pertenece este registro.",
+    )
     nombre = models.CharField(max_length=150)
     documento = models.CharField("NIT/Documento", max_length=30, blank=True)
     email = models.EmailField(blank=True)
@@ -43,6 +47,10 @@ class Venta(models.Model):
         (ANULADA, "Anulada"),
     ]
 
+    empresa = models.ForeignKey(
+        "core.Empresa", on_delete=models.PROTECT, default=1, related_name="+",
+        help_text="Inquilino (empresa) al que pertenece este registro.",
+    )
     numero = models.CharField(max_length=20, unique=True, blank=True)
     cliente = models.ForeignKey(Cliente, on_delete=models.PROTECT, related_name="ventas")
     estado = models.CharField(max_length=12, choices=ESTADO_CHOICES, default=BORRADOR)
@@ -186,6 +194,10 @@ class Venta(models.Model):
 
 
 class LineaVenta(models.Model):
+    empresa = models.ForeignKey(
+        "core.Empresa", on_delete=models.PROTECT, default=1, related_name="+",
+        help_text="Inquilino (empresa) al que pertenece este registro.",
+    )
     venta = models.ForeignKey(Venta, on_delete=models.CASCADE, related_name="lineas")
     producto = models.ForeignKey(Producto, on_delete=models.PROTECT, related_name="lineas_venta")
     cantidad = models.PositiveIntegerField(default=1)
@@ -219,6 +231,10 @@ class Cotizacion(models.Model):
         (RECHAZADA, "Rechazada"),
     ]
 
+    empresa = models.ForeignKey(
+        "core.Empresa", on_delete=models.PROTECT, default=1, related_name="+",
+        help_text="Inquilino (empresa) al que pertenece este registro.",
+    )
     numero = models.CharField(max_length=20, unique=True, blank=True)
     cliente = models.ForeignKey(Cliente, on_delete=models.PROTECT, related_name="cotizaciones")
     estado = models.CharField(max_length=12, choices=ESTADO_CHOICES, default=BORRADOR)
@@ -328,6 +344,10 @@ class Cotizacion(models.Model):
 
 
 class LineaCotizacion(models.Model):
+    empresa = models.ForeignKey(
+        "core.Empresa", on_delete=models.PROTECT, default=1, related_name="+",
+        help_text="Inquilino (empresa) al que pertenece este registro.",
+    )
     cotizacion = models.ForeignKey(Cotizacion, on_delete=models.CASCADE, related_name="lineas")
     producto = models.ForeignKey(Producto, on_delete=models.PROTECT, related_name="lineas_cotizacion")
     cantidad = models.PositiveIntegerField(default=1)
@@ -375,6 +395,10 @@ class CuentaCobro(models.Model):
         (ANULADA, "Anulada"),
     ]
 
+    empresa = models.ForeignKey(
+        "core.Empresa", on_delete=models.PROTECT, default=1, related_name="+",
+        help_text="Inquilino (empresa) al que pertenece este registro.",
+    )
     numero = models.CharField(max_length=20, unique=True, blank=True)
     estado = models.CharField(max_length=12, choices=ESTADO_CHOICES, default=BORRADOR)
     cliente = models.ForeignKey(Cliente, on_delete=models.PROTECT, related_name="cuentas_cobro")
