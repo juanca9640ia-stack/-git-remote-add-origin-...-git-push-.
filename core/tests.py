@@ -1,11 +1,14 @@
+from datetime import date
+
 from django.conf import settings
 from django.contrib.auth.models import Group, Permission, User
 from django.test import TestCase
 from django.urls import reverse
 
 from compras.models import Proveedor
-from core.models import Empresa
+from core.models import Empresa, PerfilUsuario
 from inventario.models import Categoria
+from proyectos.models import HitoProyecto, Proyecto
 from rrhh.models import Departamento
 from ventas.models import Cliente
 
@@ -106,3 +109,42 @@ class LoginBruteForceTests(TestCase):
             reverse("login"), {"username": "protegido", "password": "ClaveCorrecta123"}, follow=True,
         )
         self.assertTrue(response.wsgi_request.user.is_authenticated)
+
+
+class CalendarioTests(TestCase):
+    def setUp(self):
+        self.empresa = Empresa.objects.get(pk=1)
+        self.superuser = User.objects.create_superuser(username="root_cal", password="ClaveSegura123")
+        PerfilUsuario.objects.create(usuario=self.superuser, empresa=self.empresa)
+        self.client.force_login(self.superuser)
+
+    def test_usuario_sin_permiso_ve_pantalla_de_sin_acceso(self):
+        limitado = User.objects.create_user(username="sin_acceso_cal", password="ClaveSegura123")
+        PerfilUsuario.objects.create(usuario=limitado, empresa=self.empresa)
+        self.client.force_login(limitado)
+        response = self.client.get(reverse("calendario"))
+        self.assertTemplateUsed(response, "core/sin_acceso.html")
+
+    def test_superusuario_ve_el_calendario(self):
+        response = self.client.get(reverse("calendario"))
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "core/calendario.html")
+
+    def test_hito_del_mes_aparece_en_el_dia_correcto(self):
+        hoy = date.today()
+        proyecto = Proyecto.objects.create(empresa=self.empresa, nombre="Obra Calendario")
+        hito = HitoProyecto.objects.create(
+            empresa=self.empresa, proyecto=proyecto, nombre="Cimentación", fecha_objetivo=hoy,
+        )
+        response = self.client.get(reverse("calendario"))
+        dia_con_eventos = next(
+            dia for semana in response.context["semanas"] for dia in semana if dia["fecha"] == hoy
+        )
+        titulos = [e["titulo"] for e in dia_con_eventos["eventos"]]
+        self.assertTrue(any("Cimentación" in t for t in titulos))
+
+    def test_navegar_a_otro_mes_no_falla(self):
+        response = self.client.get(reverse("calendario"), {"anio": 2027, "mes": 1})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["anio"], 2027)
+        self.assertEqual(response.context["mes"], 1)

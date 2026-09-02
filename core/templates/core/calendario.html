@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}Calendario{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+    <div>
+        <h2 class="mb-1">Calendario</h2>
+        <p class="text-muted mb-0">Hitos de obra, entregas, vencimientos de cartera y cotizaciones, todo en un solo lugar.</p>
+    </div>
+    <div class="d-flex align-items-center gap-2">
+        <a href="?anio={{ mes_anterior_anio }}&mes={{ mes_anterior }}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-chevron-left"></i></a>
+        <span class="fw-bold" style="min-width:160px; text-align:center;">{{ mes_nombre_largo }} {{ anio }}</span>
+        <a href="?anio={{ mes_siguiente_anio }}&mes={{ mes_siguiente }}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-chevron-right"></i></a>
+        <a href="{% url 'calendario' %}" class="btn btn-outline-primary btn-sm ms-2">Hoy</a>
+    </div>
+</div>
+
+<div class="sap-calendario card card-kpi p-3">
+    <div class="sap-cal-cabecera">
+        {% for dia in dias_semana %}<div class="sap-cal-cabecera-dia">{{ dia }}</div>{% endfor %}
+    </div>
+    {% for semana in semanas %}
+        <div class="sap-cal-semana">
+            {% for dia in semana %}
+                <div class="sap-cal-dia {% if not dia.es_del_mes %}sap-cal-dia-fuera{% endif %} {% if dia.es_hoy %}sap-cal-dia-hoy{% endif %}">
+                    <div class="sap-cal-dia-numero">{{ dia.fecha.day }}</div>
+                    <div class="sap-cal-dia-eventos">
+                        {% for evento in dia.eventos|slice:":3" %}
+                            <a href="{{ evento.url }}" class="sap-cal-evento sap-cal-evento-{{ evento.color }}" title="{{ evento.titulo }}">
+                                <i class="bi {{ evento.icono }}"></i>{{ evento.titulo }}
+                            </a>
+                        {% endfor %}
+                        {% if dia.eventos|length > 3 %}
+                            <div class="sap-cal-evento-mas">+{{ dia.eventos|length|add:"-3" }} más</div>
+                        {% endif %}
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% endfor %}
+</div>
+
+<div class="d-flex gap-3 mt-3 flex-wrap small text-muted">
+    <span><span class="sap-cal-leyenda bg-danger"></span> Vencido / crítico</span>
+    <span><span class="sap-cal-leyenda bg-warning"></span> Por vencer</span>
+    <span><span class="sap-cal-leyenda bg-info"></span> Hito programado</span>
+    <span><span class="sap-cal-leyenda bg-primary"></span> Entrega de obra</span>
+    <span><span class="sap-cal-leyenda bg-success"></span> Completado</span>
+</div>
+{% endblock %}

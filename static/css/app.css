@@ -436,3 +436,48 @@ a { color: var(--sap-blue); }
 }
 .sap-embudo-valor { font-weight: 700; font-size: .95rem; margin-top: .35rem; }
 .sap-embudo-etiqueta { font-size: .7rem; color: var(--sap-text-muted); text-transform: uppercase; letter-spacing: .03em; }
+
+/* ===== Calendario ejecutivo ===== */
+.sap-cal-cabecera, .sap-cal-semana {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+}
+.sap-cal-cabecera-dia {
+    font-size: .68rem; text-transform: uppercase; letter-spacing: .04em;
+    color: var(--sap-text-muted); font-weight: 700; text-align: center; padding: .4rem 0;
+}
+.sap-cal-dia {
+    min-height: 92px; border: 1px solid var(--sap-border); padding: .3rem;
+    display: flex; flex-direction: column; gap: .2rem;
+}
+.sap-cal-semana .sap-cal-dia + .sap-cal-dia { border-left: none; }
+.sap-cal-semana { border-top: none; }
+.sap-cal-semana:first-child { border-top: 1px solid var(--sap-border); }
+.sap-cal-dia-fuera { background: #fafafa; color: var(--sap-text-muted); }
+.sap-cal-dia-fuera .sap-cal-dia-numero { color: var(--sap-text-muted); }
+.sap-cal-dia-hoy { background: #eef6ff; }
+.sap-cal-dia-numero { font-size: .78rem; font-weight: 600; }
+.sap-cal-dia-hoy .sap-cal-dia-numero {
+    background: var(--sap-blue); color: #fff; border-radius: 50%;
+    width: 20px; height: 20px; display: flex; align-items: center; justify-content: center;
+}
+.sap-cal-dia-eventos { display: flex; flex-direction: column; gap: .15rem; overflow: hidden; }
+.sap-cal-evento {
+    font-size: .66rem; padding: .1rem .3rem; border-radius: 3px; text-decoration: none;
+    color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    display: flex; align-items: center; gap: .2rem;
+}
+.sap-cal-evento i { font-size: .6rem; flex-shrink: 0; }
+.sap-cal-evento-danger { background: #b00020; }
+.sap-cal-evento-warning { background: #e9730c; }
+.sap-cal-evento-info { background: #0a6ed1; }
+.sap-cal-evento-primary { background: #4a6de5; }
+.sap-cal-evento-success { background: #107e3e; }
+.sap-cal-evento-mas { font-size: .64rem; color: var(--sap-text-muted); padding-left: .3rem; }
+.sap-cal-leyenda {
+    display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: .3rem;
+}
+@media (max-width: 768px) {
+    .sap-cal-dia { min-height: 60px; }
+    .sap-cal-evento span { display: none; }
+}

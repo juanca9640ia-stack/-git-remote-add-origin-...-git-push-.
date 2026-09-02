@@ -4,11 +4,12 @@ from django.contrib import admin
 from django.contrib.auth import views as auth_views
 from django.urls import include, path
 
-from core.views import busqueda_global, dashboard, notificaciones
+from core.views import busqueda_global, calendario, dashboard, notificaciones
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('', dashboard, name='dashboard'),
+    path('calendario/', calendario, name='calendario'),
     path('buscar/', busqueda_global, name='busqueda_global'),
     path('notificaciones/', notificaciones, name='notificaciones'),
     path('login/', auth_views.LoginView.as_view(template_name='registration/login.html'), name='login'),

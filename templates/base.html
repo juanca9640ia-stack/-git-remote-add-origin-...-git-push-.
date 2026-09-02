@@ -91,6 +91,9 @@
                 <a href="{% url 'dashboard' %}" class="sap-nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}" title="Dashboard">
                     <i class="bi bi-speedometer2"></i><span>Dashboard</span>
                 </a>
+                <a href="{% url 'calendario' %}" class="sap-nav-link {% if request.resolver_match.url_name == 'calendario' %}active{% endif %}" title="Calendario">
+                    <i class="bi bi-calendar3"></i><span>Calendario</span>
+                </a>
             </div>
         </div>
         {% endif %}

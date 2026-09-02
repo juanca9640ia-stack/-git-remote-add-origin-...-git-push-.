@@ -1,5 +1,6 @@
+import calendar
 import json
-from datetime import timedelta
+from datetime import date, timedelta
 from decimal import Decimal
 
 from django.contrib.auth.decorators import login_required
@@ -28,6 +29,13 @@ MESES_ABREV = {
     1: "Ene", 2: "Feb", 3: "Mar", 4: "Abr", 5: "May", 6: "Jun",
     7: "Jul", 8: "Ago", 9: "Sep", 10: "Oct", 11: "Nov", 12: "Dic",
 }
+
+MESES_COMPLETOS = {
+    1: "Enero", 2: "Febrero", 3: "Marzo", 4: "Abril", 5: "Mayo", 6: "Junio",
+    7: "Julio", 8: "Agosto", 9: "Septiembre", 10: "Octubre", 11: "Noviembre", 12: "Diciembre",
+}
+
+DIAS_SEMANA_ABREV = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"]
 
 PERIODOS = {
     # clave -> (etiqueta, días hacia atrás desde hoy; None = desde el 1º del año)
@@ -396,3 +404,102 @@ def notificaciones(request):
     """Feed de la campana del shellbar: las mismas alertas del dashboard,
     disponibles desde cualquier pantalla."""
     return JsonResponse({"alertas": _construir_alertas(request)})
+
+
+def _eventos_calendario(request, fecha_desde, fecha_hasta):
+    """Fechas importantes de todos los módulos, en un solo lugar: hitos y
+    entregas de obra, vencimientos de cartera y de cotizaciones. Cada
+    categoría se omite si el usuario no tiene acceso al módulo."""
+    empresa = request.empresa
+    eventos_por_dia = {}
+
+    def agregar(fecha, evento):
+        if fecha_desde <= fecha <= fecha_hasta:
+            eventos_por_dia.setdefault(fecha, []).append(evento)
+
+    if request.user.has_module_perms("proyectos"):
+        hitos = HitoProyecto.objects.filter(
+            empresa=empresa, fecha_objetivo__gte=fecha_desde, fecha_objetivo__lte=fecha_hasta,
+        ).select_related("proyecto")
+        for hito in hitos:
+            agregar(hito.fecha_objetivo, {
+                "color": "success" if hito.completado else ("danger" if hito.vencido else "info"),
+                "icono": "bi-flag", "titulo": f"Hito: {hito.nombre} ({hito.proyecto.nombre})",
+                "url": reverse("proyectos:proyecto_detalle", args=[hito.proyecto_id]),
+            })
+        entregas = Proyecto.objects.filter(
+            empresa=empresa, fecha_fin_estimada__gte=fecha_desde, fecha_fin_estimada__lte=fecha_hasta,
+        ).exclude(estado__in=[Proyecto.FINALIZADO, Proyecto.CANCELADO])
+        for proyecto in entregas:
+            agregar(proyecto.fecha_fin_estimada, {
+                "color": "primary", "icono": "bi-buildings", "titulo": f"Entrega estimada: {proyecto.nombre}",
+                "url": reverse("proyectos:proyecto_detalle", args=[proyecto.pk]),
+            })
+
+    if request.user.has_module_perms("finanzas"):
+        cxc = CuentaPorCobrar.objects.filter(
+            empresa=empresa, fecha_vencimiento__gte=fecha_desde, fecha_vencimiento__lte=fecha_hasta,
+            estado__in=[CuentaPorCobrar.PENDIENTE, CuentaPorCobrar.PARCIAL],
+        ).select_related("venta", "venta__cliente")
+        hoy = timezone.localdate()
+        for cuenta in cxc:
+            agregar(cuenta.fecha_vencimiento, {
+                "color": "danger" if cuenta.fecha_vencimiento < hoy else "warning",
+                "icono": "bi-cash-coin", "titulo": f"Vence CxC {cuenta.venta.numero} · {cuenta.venta.cliente}",
+                "url": reverse("finanzas:cxc_detalle", args=[cuenta.pk]),
+            })
+
+    if request.user.has_module_perms("ventas"):
+        cotizaciones = Cotizacion.objects.filter(
+            empresa=empresa, estado=Cotizacion.ENVIADA,
+            fecha_validez__gte=fecha_desde, fecha_validez__lte=fecha_hasta,
+        ).select_related("cliente")
+        for cot in cotizaciones:
+            agregar(cot.fecha_validez, {
+                "color": "warning", "icono": "bi-file-earmark-text",
+                "titulo": f"Vence cotización {cot.numero} · {cot.cliente}",
+                "url": reverse("ventas:cotizacion_detalle", args=[cot.pk]),
+            })
+
+    return eventos_por_dia
+
+
+@login_required
+def calendario(request):
+    if not (request.user.is_superuser or request.user.has_perm("core.ver_dashboard")):
+        return render(request, "core/sin_acceso.html")
+
+    hoy = timezone.localdate()
+    try:
+        anio = int(request.GET.get("anio", hoy.year))
+        mes = int(request.GET.get("mes", hoy.month))
+        primer_dia = date(anio, mes, 1)
+    except (ValueError, TypeError):
+        anio, mes, primer_dia = hoy.year, hoy.month, hoy.replace(day=1)
+
+    ultimo_dia = date(anio, mes, calendar.monthrange(anio, mes)[1])
+    cal = calendar.Calendar(firstweekday=0)  # semana empieza en lunes
+    semanas_dias = cal.monthdatescalendar(anio, mes)  # incluye días de meses vecinos para completar semanas
+
+    fecha_desde = semanas_dias[0][0]
+    fecha_hasta = semanas_dias[-1][-1]
+    eventos_por_dia = _eventos_calendario(request, fecha_desde, fecha_hasta)
+
+    semanas = [
+        [{"fecha": dia, "es_del_mes": dia.month == mes, "es_hoy": dia == hoy, "eventos": eventos_por_dia.get(dia, [])}
+         for dia in semana]
+        for semana in semanas_dias
+    ]
+
+    mes_anterior_anio, mes_anterior = (anio - 1, 12) if mes == 1 else (anio, mes - 1)
+    mes_siguiente_anio, mes_siguiente = (anio + 1, 1) if mes == 12 else (anio, mes + 1)
+
+    return render(request, "core/calendario.html", {
+        "semanas": semanas,
+        "mes_nombre_largo": MESES_COMPLETOS.get(mes, ""),
+        "dias_semana": DIAS_SEMANA_ABREV,
+        "anio": anio, "mes": mes,
+        "mes_anterior_anio": mes_anterior_anio, "mes_anterior": mes_anterior,
+        "mes_siguiente_anio": mes_siguiente_anio, "mes_siguiente": mes_siguiente,
+        "total_eventos": sum(len(v) for v in eventos_por_dia.values()),
+    })
