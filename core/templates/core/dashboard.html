@@ -1,11 +1,11 @@
 {% extends "base.html" %}
 {% load money %}
-{% block title %}Dashboard{% endblock %}
+{% block title %}Centro de Comando{% endblock %}
 {% block content %}
-<div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-1">
+<div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-4">
     <div>
-        <h2 class="mb-1">Página de inicio</h2>
-        <p class="text-muted mb-0">Accesos directos a cada módulo con sus indicadores clave.</p>
+        <h2 class="mb-1">Centro de Comando</h2>
+        <p class="text-muted mb-0">Resumen ejecutivo de tu empresa.</p>
     </div>
     <div class="btn-group sap-periodo-selector" role="group" aria-label="Periodo">
         {% for p in periodos %}
@@ -15,14 +15,73 @@
     </div>
 </div>
 
-{% if alertas %}
-<div class="sap-alert-center mb-4">
-    {% for alerta in alertas %}
-    <div class="alert alert-{{ alerta.severidad }} d-flex justify-content-between align-items-center mb-2">
-        <div><i class="bi {{ alerta.icono }} me-2"></i>{{ alerta.mensaje }}</div>
-        <a href="{{ alerta.url }}" class="btn btn-sm btn-outline-{{ alerta.severidad }}">{{ alerta.accion }}</a>
+{# ============ NIVEL 1 — SALUD GENERAL ============ #}
+<div class="row g-3 mb-4">
+    <div class="col-lg-4">
+        <div class="card card-kpi p-3 h-100 sap-salud-card sap-salud-{{ salud.color|default:"neutro" }}">
+            <small class="text-muted text-uppercase fw-bold">Salud empresarial</small>
+            {% if salud %}
+                <div class="d-flex align-items-baseline gap-2 mt-1">
+                    <span class="sap-salud-score">{{ salud.score }}</span>
+                    <span class="text-muted">/ 100</span>
+                </div>
+                <span class="badge sap-salud-estado bg-{{ salud.color }} mt-1 align-self-start">{{ salud.estado }}</span>
+                <div class="sap-salud-componentes mt-3">
+                    {% for c in salud.componentes %}
+                        <div class="sap-salud-componente">
+                            <span>{{ c.etiqueta }}</span>
+                            <i class="bi {% if c.tendencia == 'up' %}bi-arrow-up-circle-fill sap-tendencia-up{% elif c.tendencia == 'down' %}bi-arrow-down-circle-fill sap-tendencia-down{% else %}bi-dash-circle-fill sap-tendencia-flat{% endif %}"></i>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p class="text-muted mt-2 mb-0">Estamos recopilando información para calcular la salud empresarial.</p>
+            {% endif %}
+        </div>
     </div>
-    {% endfor %}
+    <div class="col-lg-8">
+        <div class="card card-kpi p-3 h-100">
+            <small class="text-muted text-uppercase fw-bold"><i class="bi bi-stars me-1"></i>Resumen ejecutivo</small>
+            {% if resumen_ejecutivo %}
+                <p class="mb-0 mt-2">{{ resumen_ejecutivo }}</p>
+            {% else %}
+                <p class="text-muted mt-2 mb-0">El sistema necesita más información para generar un análisis ejecutivo.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+{# ============ LO MÁS IMPORTANTE HOY ============ #}
+{% if lo_mas_importante %}
+<div class="card card-kpi p-3 mb-4 sap-importante-card">
+    <small class="text-muted text-uppercase fw-bold mb-2 d-block">Lo más importante hoy</small>
+    <ol class="sap-importante-lista">
+        {% for item in lo_mas_importante %}
+            <li class="sap-importante-item">
+                <i class="bi {{ item.icono }} sap-importante-icono sap-importante-{{ item.severidad }}"></i>
+                <span class="flex-grow-1">{{ item.mensaje }}</span>
+                <a href="{{ item.url }}" class="btn btn-sm btn-outline-secondary text-nowrap">{{ item.accion }}</a>
+            </li>
+        {% endfor %}
+    </ol>
+</div>
+{% endif %}
+
+{# ============ NIVEL 2 — REQUIERE ATENCIÓN ============ #}
+{% if alertas %}
+<div class="mb-4">
+    <h6 class="text-muted text-uppercase mb-2">Requiere atención</h6>
+    <div class="sap-alert-center">
+        {% for alerta in alertas %}
+        <div class="alert alert-{{ alerta.severidad }} d-flex justify-content-between align-items-center mb-2">
+            <div>
+                <span class="badge sap-badge-prioridad-{{ alerta.prioridad }} me-2">{{ alerta.prioridad }}</span>
+                <i class="bi {{ alerta.icono }} me-1"></i><strong>{{ alerta.titulo }}.</strong> {{ alerta.mensaje }}
+            </div>
+            <a href="{{ alerta.url }}" class="btn btn-sm btn-outline-{{ alerta.severidad }} text-nowrap">{{ alerta.accion }}</a>
+        </div>
+        {% endfor %}
+    </div>
 </div>
 {% endif %}
 
@@ -43,6 +102,8 @@
 </div>
 {% endif %}
 
+{# ============ NIVEL 3 — DINERO ============ #}
+<h6 class="text-muted text-uppercase mb-2">Dinero</h6>
 <div class="sap-tile-grid mb-4">
     {% for tile in tiles %}
         <a href="{{ tile.url }}" class="sap-tile sap-tile-{{ tile.color }}">
@@ -52,23 +113,6 @@
             <div class="sap-tile-label">{{ tile.label }}</div>
         </a>
     {% endfor %}
-</div>
-
-<div class="sap-quick-actions mb-4">
-    {% if perms.ventas %}
-        <a href="{% url 'ventas:elegir_documento' %}" class="sap-quick-action"><i class="bi bi-file-earmark-plus"></i>Nuevo documento</a>
-        <a href="{% url 'ventas:cotizacion_crear' %}" class="sap-quick-action"><i class="bi bi-file-earmark-text"></i>Nueva cotización</a>
-        <a href="{% url 'ventas:cliente_crear' %}" class="sap-quick-action"><i class="bi bi-person-plus"></i>Nuevo cliente</a>
-    {% endif %}
-    {% if perms.compras %}
-        <a href="{% url 'compras:compra_crear' %}" class="sap-quick-action"><i class="bi bi-cart-plus"></i>Nueva compra</a>
-    {% endif %}
-    {% if perms.inventario %}
-        <a href="{% url 'inventario:producto_crear' %}" class="sap-quick-action"><i class="bi bi-box-seam"></i>Nuevo producto</a>
-    {% endif %}
-    {% if perms.rrhh %}
-        <a href="{% url 'rrhh:empleado_crear' %}" class="sap-quick-action"><i class="bi bi-person-badge"></i>Nuevo empleado</a>
-    {% endif %}
 </div>
 
 <div class="row g-3 mb-4">
@@ -110,9 +154,32 @@
     </div>
 </div>
 
-<div class="row g-3">
+{# ============ NIVEL 4 — VENTAS (pipeline) ============ #}
+{% if pipeline %}
+<h6 class="text-muted text-uppercase mb-2">Ventas</h6>
+<div class="card card-kpi p-3 mb-4">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <span class="fw-bold">Pipeline comercial</span>
+        <a href="{% url 'ventas:cotizacion_lista' %}" class="small">Ver cotizaciones</a>
+    </div>
+    <div class="sap-embudo">
+        {% for etapa in pipeline %}
+            <div class="sap-embudo-etapa">
+                <div class="sap-embudo-barra-wrap">
+                    <div class="sap-embudo-barra bg-{{ etapa.color }}" style="height:{% widthratio etapa.cantidad pipeline_maximo 100 %}%;"></div>
+                </div>
+                <div class="sap-embudo-valor">{{ etapa.cantidad }}</div>
+                <div class="sap-embudo-etiqueta">{{ etapa.etiqueta }}</div>
+                <div class="text-muted small">{{ etapa.valor|cop }}</div>
+            </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<div class="row g-3 mb-4">
     <div class="col-md-7">
-        <div class="card card-kpi">
+        <div class="card card-kpi h-100">
             <div class="card-header bg-white fw-bold">Últimas ventas confirmadas</div>
             <div class="table-responsive">
                 <table class="table table-hover mb-0">
@@ -134,7 +201,7 @@
         </div>
     </div>
     <div class="col-md-5">
-        <div class="card card-kpi">
+        <div class="card card-kpi h-100">
             <div class="card-header bg-white fw-bold text-danger">Productos con stock bajo</div>
             <div class="table-responsive">
                 <table class="table table-hover mb-0">
@@ -154,6 +221,115 @@
             </div>
         </div>
     </div>
+</div>
+
+{# ============ NIVEL 5 — PROYECTOS ============ #}
+{% if proyectos_activos or proyectos_en_riesgo %}
+<h6 class="text-muted text-uppercase mb-2">Proyectos</h6>
+<div class="row g-3 mb-4">
+    <div class="col-lg-7">
+        <div class="card card-kpi h-100">
+            <div class="card-header bg-white fw-bold d-flex justify-content-between">
+                Estado de proyectos
+                <a href="{% url 'proyectos:proyecto_lista' %}" class="small">Ver todos ({{ proyectos_activos_count }})</a>
+            </div>
+            <ul class="list-group list-group-flush">
+                {% for p in proyectos_activos %}
+                    <li class="list-group-item">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <a href="{% url 'proyectos:proyecto_detalle' p.pk %}" class="fw-bold text-decoration-none">{{ p.nombre }}</a>
+                            <span class="badge bg-info">{{ p.get_estado_display }}</span>
+                        </div>
+                        <div class="progress mb-1" style="height:6px;">
+                            <div class="progress-bar bg-success" style="width:{{ p.porcentaje_avance }}%;"></div>
+                        </div>
+                        <div class="text-muted small">
+                            {{ p.porcentaje_avance }}% avance · Presupuesto {{ p.presupuesto|cop }} · Ejecutado {{ p.gastado|cop }}
+                            {% if p.margen_utilidad != None %} · Margen {{ p.margen_utilidad }}%{% endif %}
+                        </div>
+                    </li>
+                {% empty %}
+                    <li class="list-group-item text-center text-muted py-4">Sin proyectos activos</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+    <div class="col-lg-5">
+        <div class="card card-kpi h-100">
+            <div class="card-header bg-white fw-bold text-danger">Proyectos en riesgo</div>
+            <ul class="list-group list-group-flush">
+                {% for p in proyectos_en_riesgo %}
+                    <li class="list-group-item">
+                        <a href="{% url 'proyectos:proyecto_detalle' p.pk %}" class="fw-bold text-decoration-none text-danger">
+                            <i class="bi bi-exclamation-triangle-fill me-1"></i>{{ p.nombre }}
+                        </a>
+                        <div class="text-muted small">Costo ejecutado {{ p.porcentaje_gastado }}% del presupuesto.</div>
+                    </li>
+                {% empty %}
+                    <li class="list-group-item text-center text-muted py-4">Ningún proyecto en riesgo</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{# ============ OPORTUNIDADES ============ #}
+{% if oportunidades %}
+<h6 class="text-muted text-uppercase mb-2">Oportunidades</h6>
+<div class="row g-3 mb-4">
+    {% for o in oportunidades %}
+        <div class="col-md-4">
+            <div class="card card-kpi p-3 h-100 sap-oportunidad-card">
+                <i class="bi {{ o.icono }} sap-oportunidad-icono"></i>
+                <div class="fw-bold mt-2">{{ o.titulo }}</div>
+                <p class="text-muted small flex-grow-1">{{ o.mensaje }}</p>
+                <a href="{{ o.url }}" class="btn btn-sm btn-outline-success align-self-start">{{ o.accion }}</a>
+            </div>
+        </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+{# ============ ACTIVIDAD RECIENTE ============ #}
+{% if actividad_reciente %}
+<h6 class="text-muted text-uppercase mb-2">Actividad reciente</h6>
+<div class="card card-kpi p-3 mb-4">
+    <div class="sap-timeline">
+        {% for evento in actividad_reciente %}
+            <a href="{{ evento.url }}" class="sap-timeline-item">
+                <i class="bi {{ evento.icono }}"></i>
+                <span class="flex-grow-1">{{ evento.mensaje }}</span>
+                <small class="text-muted text-nowrap">{{ evento.cuando|date:"d/m/Y H:i" }}</small>
+            </a>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+{# ============ NIVEL 6 — ACCIONES ============ #}
+<h6 class="text-muted text-uppercase mb-2">Acciones rápidas</h6>
+<div class="sap-quick-actions mb-4">
+    {% if perms.ventas %}
+        <a href="{% url 'ventas:elegir_documento' %}" class="sap-quick-action"><i class="bi bi-file-earmark-plus"></i>Nuevo documento</a>
+        <a href="{% url 'ventas:cotizacion_crear' %}" class="sap-quick-action"><i class="bi bi-file-earmark-text"></i>Nueva cotización</a>
+        <a href="{% url 'ventas:cliente_crear' %}" class="sap-quick-action"><i class="bi bi-person-plus"></i>Nuevo cliente</a>
+    {% endif %}
+    {% if perms.proyectos %}
+        <a href="{% url 'proyectos:proyecto_crear' %}" class="sap-quick-action"><i class="bi bi-buildings"></i>Nuevo proyecto</a>
+    {% endif %}
+    {% if perms.compras %}
+        <a href="{% url 'compras:compra_crear' %}" class="sap-quick-action"><i class="bi bi-cart-plus"></i>Nueva compra</a>
+    {% endif %}
+    {% if perms.inventario %}
+        <a href="{% url 'inventario:producto_crear' %}" class="sap-quick-action"><i class="bi bi-box-seam"></i>Nuevo producto</a>
+    {% endif %}
+    {% if perms.rrhh %}
+        <a href="{% url 'rrhh:empleado_crear' %}" class="sap-quick-action"><i class="bi bi-person-badge"></i>Nuevo empleado</a>
+    {% endif %}
+    {% if perms.documentos %}
+        <a href="{% url 'documentos:documento_subir' %}" class="sap-quick-action"><i class="bi bi-folder-plus"></i>Crear documento</a>
+    {% endif %}
 </div>
 {% endblock %}
 

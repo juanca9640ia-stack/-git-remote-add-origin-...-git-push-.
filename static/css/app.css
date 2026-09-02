@@ -58,6 +58,11 @@ h1, h2, h3, h4, h5, h6 {
 .sap-shellbar-logo i { font-size: 1.25rem; }
 .sap-shellbar-logo-img { height: 26px; max-width: 120px; object-fit: contain; }
 .sap-shellbar-logo:hover { color: #fff; opacity: .9; }
+@media (max-width: 480px) {
+    /* El nombre de la empresa ya no cabe junto a los iconos de la derecha en
+       pantallas muy angostas: se oculta el texto y se deja solo el logo. */
+    .sap-shellbar-logo span { display: none; }
+}
 .sap-shellbar-menu-btn {
     background: none; border: none; color: #fff; font-size: 1.25rem;
     padding: .3rem .5rem; cursor: pointer; border-radius: 2px; line-height: 1;
@@ -489,3 +494,54 @@ a { color: var(--sap-blue); }
     width: 48px; height: 48px; border-radius: 10px; color: #fff;
     display: flex; align-items: center; justify-content: center; font-size: 1.4rem;
 }
+
+/* ===== Centro de Comando: salud empresarial ===== */
+.sap-salud-card { border-left: 4px solid var(--sap-border); }
+.sap-salud-success { border-left-color: #107e3e; }
+.sap-salud-warning { border-left-color: #e9730c; }
+.sap-salud-danger { border-left-color: #bb0000; }
+.sap-salud-score { font-size: 2.5rem; font-weight: 800; line-height: 1; color: var(--sap-text); }
+.sap-salud-estado { font-size: .72rem; text-transform: uppercase; letter-spacing: .04em; }
+.sap-salud-componentes { display: flex; flex-direction: column; gap: .4rem; }
+.sap-salud-componente {
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: .82rem; padding-bottom: .3rem; border-bottom: 1px solid var(--sap-border);
+}
+.sap-salud-componente:last-child { border-bottom: none; padding-bottom: 0; }
+.sap-tendencia-up { color: #107e3e; }
+.sap-tendencia-down { color: #bb0000; }
+.sap-tendencia-flat { color: var(--sap-text-muted); }
+
+/* ===== Centro de Comando: lo más importante hoy ===== */
+.sap-importante-card { border: 1px solid var(--sap-blue); background: #f5faff; }
+.sap-importante-lista { list-style: decimal; margin: 0; padding-left: 1.4rem; }
+.sap-importante-item {
+    display: flex; align-items: center; gap: .6rem; padding: .5rem 0;
+    border-bottom: 1px solid rgba(10,110,209,.12);
+}
+.sap-importante-item:last-child { border-bottom: none; }
+.sap-importante-icono { font-size: 1rem; }
+.sap-importante-danger { color: #bb0000; }
+.sap-importante-warning { color: #e9730c; }
+.sap-importante-success { color: #107e3e; }
+
+/* ===== Centro de Comando: prioridad de alertas ===== */
+.sap-badge-prioridad-critica { background: #bb0000; color: #fff; }
+.sap-badge-prioridad-alta { background: #e9730c; color: #fff; }
+.sap-badge-prioridad-media { background: #e9c93c; color: #4a3d00; }
+.sap-badge-prioridad-baja { background: #d9d9d9; color: #4a4d50; }
+.sap-alert-center .badge { font-size: .62rem; text-transform: uppercase; letter-spacing: .03em; vertical-align: middle; }
+
+/* ===== Centro de Comando: oportunidades ===== */
+.sap-oportunidad-card { border-left: 4px solid #107e3e; display: flex; flex-direction: column; }
+.sap-oportunidad-icono { font-size: 1.3rem; color: #107e3e; }
+
+/* ===== Centro de Comando: actividad reciente ===== */
+.sap-timeline { display: flex; flex-direction: column; }
+.sap-timeline-item {
+    display: flex; align-items: center; gap: .7rem; padding: .55rem 0;
+    border-bottom: 1px solid var(--sap-border); text-decoration: none; color: var(--sap-text); font-size: .85rem;
+}
+.sap-timeline-item:last-child { border-bottom: none; }
+.sap-timeline-item i { color: var(--sap-blue); font-size: 1rem; flex-shrink: 0; }
+.sap-timeline-item:hover { color: var(--sap-blue); }
