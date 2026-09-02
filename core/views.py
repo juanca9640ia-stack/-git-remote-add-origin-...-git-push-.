@@ -1,3 +1,5 @@
+import json
+from datetime import timedelta
 from decimal import Decimal
 
 from django.contrib.auth.decorators import login_required
@@ -11,11 +13,37 @@ from finanzas.models import CuentaPorCobrar, CuentaPorPagar
 from inventario.models import Producto
 from produccion.models import OrdenProduccion
 from rrhh.models import Empleado
-from ventas.models import Venta
+from ventas.models import Cotizacion, Venta
 
 
 def _money(value):
     return f"${intcomma(f'{value:.2f}')}"
+
+
+MESES_ABREV = {
+    1: "Ene", 2: "Feb", 3: "Mar", 4: "Abr", 5: "May", 6: "Jun",
+    7: "Jul", 8: "Ago", 9: "Sep", 10: "Oct", 11: "Nov", 12: "Dic",
+}
+
+PERIODOS = {
+    # clave -> (etiqueta, días hacia atrás desde hoy; None = desde el 1º del año)
+    "semana": ("Última semana", 6),
+    "mes": ("Este mes", None),
+    "trimestre": ("Últimos 90 días", 89),
+    "anio": ("Este año", None),
+}
+
+
+def _rango_periodo(periodo, hoy):
+    """Devuelve (fecha_desde, agrupar_por_mes) para el periodo pedido."""
+    if periodo == "semana":
+        return hoy - timedelta(days=6), False
+    if periodo == "trimestre":
+        return hoy - timedelta(days=89), False
+    if periodo == "anio":
+        return hoy.replace(month=1, day=1), True
+    # "mes" (por defecto)
+    return hoy.replace(day=1), False
 
 
 @login_required
@@ -31,21 +59,44 @@ def dashboard(request):
     valor_inventario = sum((p.valor_inventario for p in productos), Decimal("0"))
 
     hoy = timezone.localdate()
+    periodo = request.GET.get("periodo", "mes")
+    if periodo not in PERIODOS:
+        periodo = "mes"
+    fecha_desde, agrupar_por_mes = _rango_periodo(periodo, hoy)
+
     ventas_confirmadas = Venta.objects.filter(estado=Venta.CONFIRMADA, empresa=empresa)
     ventas_hoy = ventas_confirmadas.filter(confirmada_en__date=hoy)
     total_ventas_hoy = sum((v.total for v in ventas_hoy), Decimal("0"))
-    total_ventas_mes = sum(
-        (v.total for v in ventas_confirmadas.filter(
-            confirmada_en__year=hoy.year, confirmada_en__month=hoy.month
-        )), Decimal("0")
-    )
+    ventas_periodo = ventas_confirmadas.filter(confirmada_en__date__gte=fecha_desde)
+    total_ventas_mes = sum((v.total for v in ventas_periodo), Decimal("0"))
 
     compras_confirmadas = Compra.objects.filter(estado=Compra.CONFIRMADA, empresa=empresa)
     total_compras_mes = sum(
-        (c.total for c in compras_confirmadas.filter(
-            creado_en__year=hoy.year, creado_en__month=hoy.month
-        )), Decimal("0")
+        (c.total for c in compras_confirmadas.filter(creado_en__date__gte=fecha_desde)), Decimal("0")
     )
+
+    # Serie para el gráfico de ventas: por mes si el periodo es "Este año",
+    # por día en cualquier otro caso. "total" es una propiedad calculada (no un
+    # campo de BD, depende de las líneas), así que se agrupa en Python.
+    serie_por_bucket = {}
+    for v in ventas_periodo:
+        fecha_v = timezone.localtime(v.confirmada_en).date()
+        bucket = fecha_v.replace(day=1) if agrupar_por_mes else fecha_v
+        serie_por_bucket[bucket] = serie_por_bucket.get(bucket, Decimal("0")) + v.total
+
+    etiquetas, valores = [], []
+    if agrupar_por_mes:
+        cursor = fecha_desde.replace(day=1)
+        while cursor <= hoy:
+            etiquetas.append(MESES_ABREV[cursor.month])
+            valores.append(float(serie_por_bucket.get(cursor, Decimal("0"))))
+            cursor = (cursor.replace(day=28) + timedelta(days=4)).replace(day=1)
+    else:
+        cursor = fecha_desde
+        while cursor <= hoy:
+            etiquetas.append(cursor.strftime("%d/%m"))
+            valores.append(float(serie_por_bucket.get(cursor, Decimal("0"))))
+            cursor += timedelta(days=1)
 
     cxc_activas = CuentaPorCobrar.objects.filter(empresa=empresa).exclude(estado=CuentaPorCobrar.ANULADA)
     cxp_activas = CuentaPorPagar.objects.filter(empresa=empresa).exclude(estado=CuentaPorPagar.ANULADA)
@@ -60,6 +111,33 @@ def dashboard(request):
     )
     cxc_vencidas_count = cxc_vencidas.count()
     cxc_vencidas_total = sum((c.saldo_pendiente for c in cxc_vencidas), Decimal("0"))
+
+    cotizaciones_vencidas = Cotizacion.objects.filter(
+        empresa=empresa, estado=Cotizacion.ENVIADA, fecha_validez__lt=hoy,
+    )
+    cotizaciones_vencidas_count = cotizaciones_vencidas.count()
+
+    # Centro de alertas unificado: todo lo que requiere atención, en un solo lugar,
+    # ordenado por severidad.
+    alertas = []
+    if cxc_vencidas_count:
+        alertas.append({
+            "severidad": "danger", "icono": "bi-exclamation-triangle-fill",
+            "mensaje": f"{cxc_vencidas_count} factura(s) por cobrar vencida(s) por {_money(cxc_vencidas_total)}.",
+            "url": reverse("finanzas:cxc_lista") + "?vencidas=1", "accion": "Ver vencidas",
+        })
+    if productos_stock_bajo:
+        alertas.append({
+            "severidad": "warning", "icono": "bi-box-seam",
+            "mensaje": f"{len(productos_stock_bajo)} producto(s) por debajo del stock mínimo.",
+            "url": reverse("inventario:producto_lista"), "accion": "Ver inventario",
+        })
+    if cotizaciones_vencidas_count:
+        alertas.append({
+            "severidad": "warning", "icono": "bi-file-earmark-text",
+            "mensaje": f"{cotizaciones_vencidas_count} cotización(es) enviada(s) venció su vigencia sin respuesta.",
+            "url": reverse("ventas:cotizacion_lista"), "accion": "Ver cotizaciones",
+        })
 
     ordenes_planificadas = OrdenProduccion.objects.filter(
         estado=OrdenProduccion.PLANIFICADA, empresa=empresa
@@ -117,5 +195,11 @@ def dashboard(request):
         "cxp_pendientes_count": cxp_pendientes_count,
         "cxc_vencidas_count": cxc_vencidas_count,
         "cxc_vencidas_total": cxc_vencidas_total,
+        "alertas": alertas,
+        "periodo": periodo,
+        "periodos": [{"clave": k, "etiqueta": v[0]} for k, v in PERIODOS.items()],
+        "periodo_etiqueta": PERIODOS[periodo][0],
+        "chart_labels": json.dumps(etiquetas),
+        "chart_values": json.dumps(valores),
     }
     return render(request, "core/dashboard.html", context)

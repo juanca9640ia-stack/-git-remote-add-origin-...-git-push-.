@@ -306,3 +306,34 @@ a { color: var(--sap-blue); }
 .sap-tile-green .sap-tile-icon { background: #107e3e; }
 .sap-tile-orange .sap-tile-icon { background: #e9730c; }
 .sap-tile-purple .sap-tile-icon { background: #8250df; }
+
+/* ===== Dashboard ejecutivo v2: selector de periodo, acciones rápidas ===== */
+.sap-periodo-selector .btn { font-weight: 500; }
+.sap-quick-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .6rem;
+}
+.sap-quick-action {
+    display: inline-flex;
+    align-items: center;
+    gap: .45rem;
+    padding: .45rem .9rem;
+    border-radius: 6px;
+    border: 1px solid var(--sap-border);
+    background: #fff;
+    color: var(--sap-text);
+    font-size: .82rem;
+    font-weight: 500;
+    text-decoration: none;
+    transition: border-color .12s ease, background .12s ease;
+}
+.sap-quick-action i { color: var(--sap-blue); font-size: .95rem; }
+.sap-quick-action:hover {
+    border-color: var(--sap-blue);
+    background: #f0f6fd;
+    color: var(--sap-text);
+}
+.sap-alert-center .alert { border-left: 4px solid; padding: .6rem 1rem; }
+.sap-alert-center .alert-danger { border-left-color: #b00020; }
+.sap-alert-center .alert-warning { border-left-color: #e9730c; }
