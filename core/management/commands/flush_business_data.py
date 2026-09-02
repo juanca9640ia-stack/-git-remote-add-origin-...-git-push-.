@@ -1,18 +1,23 @@
 from django.core.management.base import BaseCommand
 from django.db import connection, transaction
 
+from comunicaciones.models import Comunicado
 from compras.models import Compra, LineaCompra, Proveedor
+from documentos.models import Documento
 from finanzas.models import CuentaPorCobrar, CuentaPorPagar, PagoCliente, PagoProveedor
 from inventario.models import Categoria, MovimientoInventario, Producto
 from produccion.models import ComponenteBOM, ComponenteOrdenProduccion, ListaMateriales, OrdenProduccion
+from proyectos.models import AsignacionEmpleado, GastoProyecto, HitoProyecto, Proyecto
 from rrhh.models import AbonoPrestamo, Asistencia, Departamento, DetalleNomina, Empleado, Nomina, Prestamo
-from ventas.models import Cliente, Cotizacion, LineaCotizacion, LineaVenta, Venta
+from ventas.models import Cliente, Cotizacion, CuentaCobro, LineaCotizacion, LineaVenta, Venta
 
 MODELOS_A_BORRAR = [
+    Documento, Comunicado,
     PagoCliente, PagoProveedor, CuentaPorCobrar, CuentaPorPagar,
+    AsignacionEmpleado, GastoProyecto, HitoProyecto, Proyecto,
     AbonoPrestamo, Prestamo, DetalleNomina, Nomina, Asistencia, Empleado, Departamento,
     ComponenteOrdenProduccion, OrdenProduccion, ComponenteBOM, ListaMateriales,
-    LineaCotizacion, Cotizacion, LineaVenta, Venta, Cliente,
+    CuentaCobro, LineaCotizacion, Cotizacion, LineaVenta, Venta, Cliente,
     LineaCompra, Compra, Proveedor,
     MovimientoInventario, Producto, Categoria,
 ]
@@ -20,9 +25,10 @@ MODELOS_A_BORRAR = [
 
 class Command(BaseCommand):
     help = (
-        "Borra todos los datos de negocio (ventas, compras, inventario, producción, nómina, "
-        "préstamos, etc.) para dejar el sistema listo para pruebas reales. Conserva usuarios, "
-        "grupos de permisos y la configuración de la empresa."
+        "Borra todos los datos de negocio (ventas, cotizaciones, cuentas de cobro, proyectos, "
+        "documentos, comunicados, compras, inventario, producción, nómina, préstamos, etc.) para "
+        "dejar el sistema listo para empezar con información real. Conserva usuarios, grupos de "
+        "permisos y la configuración de la empresa."
     )
 
     def add_arguments(self, parser):
@@ -34,20 +40,37 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         if not options["yes"]:
             respuesta = input(
-                "Esto borrará TODOS los datos de negocio (ventas, compras, cotizaciones, inventario, "
-                "producción, nómina, préstamos, empleados, clientes, proveedores). Los usuarios, grupos "
-                "de permisos y la configuración de la empresa se conservan. Escribe 'si' para continuar: "
+                "Esto borrará TODOS los datos de negocio (ventas, compras, cotizaciones, cuentas de "
+                "cobro, proyectos, documentos, comunicados, inventario, producción, nómina, préstamos, "
+                "empleados, clientes, proveedores). Los usuarios, grupos de permisos y la configuración "
+                "de la empresa se conservan. Escribe 'si' para continuar: "
             )
             if respuesta.strip().lower() not in ("si", "sí", "yes"):
                 self.stdout.write(self.style.WARNING("Cancelado, no se borró nada."))
                 return
 
         with transaction.atomic():
-            # Finanzas primero: protegen venta/compra/nómina hasta que se borren sus pagos y cuentas.
+            # Documentos primero, uno por uno: el .delete() de cada instancia también
+            # borra su archivo físico del almacenamiento (un .all().delete() masivo no
+            # lo haría, dejaría archivos huérfanos en /media).
+            for documento in Documento.objects.all():
+                documento.delete()
+
+            # Comunicaciones: independiente, sin relaciones que proteja nada.
+            Comunicado.objects.all().delete()
+
+            # Finanzas: protegen venta/compra/nómina hasta que se borren sus pagos y cuentas.
             PagoCliente.objects.all().delete()
             PagoProveedor.objects.all().delete()
             CuentaPorCobrar.objects.all().delete()
             CuentaPorPagar.objects.all().delete()
+
+            # Proyectos: sus hitos/gastos/asignaciones se van en cascada, pero la
+            # asignación de empleado protege a Empleado, así que hay que ir antes.
+            AsignacionEmpleado.objects.all().delete()
+            GastoProyecto.objects.all().delete()
+            HitoProyecto.objects.all().delete()
+            Proyecto.objects.all().delete()
 
             # RR.HH.
             AbonoPrestamo.objects.all().delete()
@@ -64,7 +87,8 @@ class Command(BaseCommand):
             ComponenteBOM.objects.all().delete()
             ListaMateriales.objects.all().delete()
 
-            # Ventas y cotizaciones
+            # Ventas, cotizaciones y cuentas de cobro (cuenta de cobro protege al cliente).
+            CuentaCobro.objects.all().delete()
             LineaCotizacion.objects.all().delete()
             Cotizacion.objects.all().delete()
             LineaVenta.objects.all().delete()
