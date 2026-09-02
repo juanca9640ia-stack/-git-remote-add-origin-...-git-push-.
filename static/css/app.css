@@ -361,3 +361,34 @@ a { color: var(--sap-blue); }
 @media (max-width: 768px) {
     .sap-aging-bar { grid-template-columns: repeat(2, 1fr); }
 }
+
+/* ===== Ventas: embudo de cotizaciones ===== */
+.sap-embudo {
+    display: flex;
+    align-items: flex-end;
+    gap: 1.25rem;
+    height: 110px;
+    padding-top: .5rem;
+}
+.sap-embudo-etapa {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    height: 100%;
+}
+.sap-embudo-barra-wrap {
+    flex: 1;
+    display: flex;
+    align-items: flex-end;
+    width: 100%;
+    max-width: 56px;
+}
+.sap-embudo-barra {
+    width: 100%;
+    border-radius: 4px 4px 0 0;
+    min-height: 3px;
+    transition: height .2s ease;
+}
+.sap-embudo-valor { font-weight: 700; font-size: .95rem; margin-top: .35rem; }
+.sap-embudo-etiqueta { font-size: .7rem; color: var(--sap-text-muted); text-transform: uppercase; letter-spacing: .03em; }

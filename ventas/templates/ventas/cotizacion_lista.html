@@ -7,6 +7,28 @@
     <a href="{% url 'ventas:cotizacion_crear' %}" class="btn btn-primary"><i class="bi bi-plus-lg me-1"></i>Nueva cotización</a>
 </div>
 
+<div class="card card-kpi p-3 mb-3">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <span class="text-muted text-uppercase small fw-bold">Embudo comercial</span>
+        {% if tasa_conversion != None %}
+            <span class="small"><strong>{{ tasa_conversion }}%</strong> de cierre sobre {{ decididas_count }} decidida{{ decididas_count|pluralize }} <span class="text-muted">·</span> {{ convertidas_count }} convertida{{ convertidas_count|pluralize }} a venta</span>
+        {% else %}
+            <span class="small text-muted">Aún no hay cotizaciones decididas (aceptadas o rechazadas)</span>
+        {% endif %}
+    </div>
+    <div class="sap-embudo">
+        {% for etapa in embudo %}
+            <div class="sap-embudo-etapa">
+                <div class="sap-embudo-barra-wrap">
+                    <div class="sap-embudo-barra bg-{{ etapa.color }}" style="height:{% widthratio etapa.cantidad embudo_maximo 100 %}%;"></div>
+                </div>
+                <div class="sap-embudo-valor">{{ etapa.cantidad }}</div>
+                <div class="sap-embudo-etiqueta">{{ etapa.etiqueta }}</div>
+            </div>
+        {% endfor %}
+    </div>
+</div>
+
 <form class="row g-2 mb-3" method="get">
     <div class="col-auto">
         <select name="estado" class="form-select" onchange="this.form.submit()">
@@ -17,12 +39,26 @@
             <option value="rechazada" {% if estado == "rechazada" %}selected{% endif %}>Rechazada</option>
         </select>
     </div>
+    <div class="col-auto">
+        <select name="vendedor" class="form-select" onchange="this.form.submit()">
+            <option value="">Todos los vendedores</option>
+            {% for v in vendedores %}
+                <option value="{{ v.vendedor_id }}" {% if vendedor_id == v.vendedor_id|stringformat:"s" %}selected{% endif %}>
+                    {{ v.vendedor__first_name|default:v.vendedor__username }} {{ v.vendedor__last_name }}
+                </option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="col-auto form-check pt-2">
+        <input type="checkbox" name="convertidas" value="1" class="form-check-input" id="soloConvertidas" {% if solo_convertidas %}checked{% endif %} onchange="this.form.submit()">
+        <label class="form-check-label" for="soloConvertidas">Solo convertidas a venta</label>
+    </div>
 </form>
 
 <div class="card card-kpi">
     <div class="table-responsive">
         <table class="table table-hover mb-0 align-middle">
-            <thead><tr><th>#</th><th>Cliente</th><th>Estado</th><th>Válida hasta</th><th>Vendedor</th><th class="text-end">Total</th></tr></thead>
+            <thead><tr><th>#</th><th>Cliente</th><th>Estado</th><th>Válida hasta</th><th>Vendedor</th><th>Conversión</th><th class="text-end">Total</th></tr></thead>
             <tbody>
             {% for cotizacion in cotizaciones %}
                 <tr onclick="window.location='{% url 'ventas:cotizacion_detalle' cotizacion.pk %}'" style="cursor:pointer">
@@ -42,10 +78,17 @@
                     </td>
                     <td>{{ cotizacion.fecha_validez|date:"d/m/Y" }}</td>
                     <td>{{ cotizacion.vendedor|default:"—" }}</td>
+                    <td>
+                        {% if cotizacion.venta_id %}
+                            <span class="badge bg-success"><i class="bi bi-arrow-right-circle me-1"></i>Convertida</span>
+                        {% else %}
+                            <span class="text-muted">—</span>
+                        {% endif %}
+                    </td>
                     <td class="text-end">{{ cotizacion.total|cop }}</td>
                 </tr>
             {% empty %}
-                <tr><td colspan="6" class="text-center text-muted py-4">No hay cotizaciones registradas</td></tr>
+                <tr><td colspan="7" class="text-center text-muted py-4">No hay cotizaciones registradas</td></tr>
             {% endfor %}
             </tbody>
         </table>

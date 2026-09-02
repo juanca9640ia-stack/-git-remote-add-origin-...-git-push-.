@@ -185,11 +185,52 @@ def venta_corregir_factura(request, pk):
 
 @login_required
 def cotizacion_lista(request):
-    cotizaciones = Cotizacion.objects.select_related("cliente", "vendedor").filter(empresa=request.empresa)
+    todas = Cotizacion.objects.filter(empresa=request.empresa)
+    cotizaciones = todas.select_related("cliente", "vendedor", "venta")
+
     estado = request.GET.get("estado", "")
     if estado:
         cotizaciones = cotizaciones.filter(estado=estado)
-    return render(request, "ventas/cotizacion_lista.html", {"cotizaciones": cotizaciones, "estado": estado})
+
+    vendedor_id = request.GET.get("vendedor", "")
+    if vendedor_id:
+        cotizaciones = cotizaciones.filter(vendedor_id=vendedor_id)
+
+    solo_convertidas = request.GET.get("convertidas") == "1"
+    if solo_convertidas:
+        cotizaciones = cotizaciones.filter(venta__isnull=False)
+
+    # Embudo de ventas: cuántas cotizaciones hay en cada etapa, y qué tan
+    # efectivo es el equipo comercial cerrando las que se deciden.
+    conteos = {estado_clave: todas.filter(estado=estado_clave).count() for estado_clave, _ in Cotizacion.ESTADO_CHOICES}
+    decididas = conteos[Cotizacion.ACEPTADA] + conteos[Cotizacion.RECHAZADA]
+    tasa_conversion = round(conteos[Cotizacion.ACEPTADA] / decididas * 100) if decididas else None
+    convertidas_count = todas.filter(venta__isnull=False).count()
+
+    embudo = [
+        {"etiqueta": "Borrador", "cantidad": conteos[Cotizacion.BORRADOR], "color": "warning"},
+        {"etiqueta": "Enviada", "cantidad": conteos[Cotizacion.ENVIADA], "color": "info"},
+        {"etiqueta": "Aceptada", "cantidad": conteos[Cotizacion.ACEPTADA], "color": "success"},
+        {"etiqueta": "Rechazada", "cantidad": conteos[Cotizacion.RECHAZADA], "color": "danger"},
+    ]
+    embudo_maximo = max((e["cantidad"] for e in embudo), default=0) or 1
+
+    vendedores = (
+        Cotizacion.objects.filter(empresa=request.empresa, vendedor__isnull=False)
+        .values("vendedor_id", "vendedor__username", "vendedor__first_name", "vendedor__last_name")
+        .distinct().order_by("vendedor__username")
+    )
+
+    return render(request, "ventas/cotizacion_lista.html", {
+        "cotizaciones": cotizaciones, "estado": estado,
+        "vendedor_id": vendedor_id, "vendedores": vendedores,
+        "solo_convertidas": solo_convertidas,
+        "embudo": embudo, "embudo_maximo": embudo_maximo,
+        "total_cotizaciones": todas.count(),
+        "convertidas_count": convertidas_count,
+        "decididas_count": decididas,
+        "tasa_conversion": tasa_conversion,
+    })
 
 
 @login_required
