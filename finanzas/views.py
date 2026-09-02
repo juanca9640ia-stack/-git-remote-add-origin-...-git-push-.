@@ -1,3 +1,5 @@
+import json
+from datetime import timedelta
 from decimal import Decimal
 
 from django.contrib import messages
@@ -14,6 +16,74 @@ from ventas.models import Cliente, Venta
 
 from .forms import RegistrarPagoForm
 from .models import CuentaPorCobrar, CuentaPorPagar
+
+MESES_ABREV = {
+    1: "Ene", 2: "Feb", 3: "Mar", 4: "Abr", 5: "May", 6: "Jun",
+    7: "Jul", 8: "Ago", 9: "Sep", 10: "Oct", 11: "Nov", 12: "Dic",
+}
+
+# Buckets estándar de antigüedad de cartera (días de vencida).
+AGING_BUCKETS = [
+    ("Al día", None, 0),
+    ("1-30 días", 1, 30),
+    ("31-60 días", 31, 60),
+    ("61-90 días", 61, 90),
+    ("Más de 90 días", 91, None),
+]
+
+
+def _bucket_antiguedad(cuenta, hoy):
+    """Etiqueta del bucket de antigüedad al que pertenece una cuenta por cobrar."""
+    dias_vencida = (hoy - cuenta.fecha_vencimiento).days if cuenta.fecha_vencimiento else -1
+    if dias_vencida <= 0:
+        return AGING_BUCKETS[0][0]
+    for nombre, desde, hasta in AGING_BUCKETS:
+        if desde is not None and dias_vencida >= desde and (hasta is None or dias_vencida <= hasta):
+            return nombre
+    return AGING_BUCKETS[0][0]
+
+
+def _agrupar_por_antiguedad(cxc_pendientes_qs, hoy):
+    """Clasifica cada cuenta por cobrar pendiente en un bucket de antigüedad,
+    devolviendo un resumen {etiqueta, cantidad, total} por bucket, en orden."""
+    resumen = {etiqueta: {"etiqueta": etiqueta, "cantidad": 0, "total": Decimal("0")} for etiqueta, _, _ in AGING_BUCKETS}
+    for cuenta in cxc_pendientes_qs:
+        etiqueta = _bucket_antiguedad(cuenta, hoy)
+        resumen[etiqueta]["cantidad"] += 1
+        resumen[etiqueta]["total"] += cuenta.saldo_pendiente
+    return [resumen[etiqueta] for etiqueta, _, _ in AGING_BUCKETS]
+
+
+def _serie_flujo_caja(empresa, meses=6):
+    """Ingresos (ventas confirmadas) vs egresos (compras + nómina) por mes,
+    para los últimos `meses` meses incluyendo el actual."""
+    hoy = timezone.localdate()
+    inicio = hoy.replace(day=1)
+    for _ in range(meses - 1):
+        inicio = (inicio - timedelta(days=1)).replace(day=1)
+
+    ventas = Venta.objects.filter(estado=Venta.CONFIRMADA, empresa=empresa, confirmada_en__date__gte=inicio)
+    compras = Compra.objects.filter(estado=Compra.CONFIRMADA, empresa=empresa, creado_en__date__gte=inicio)
+    nominas = Nomina.objects.filter(estado=Nomina.PROCESADA, empresa=empresa, creado_en__date__gte=inicio)
+
+    ingresos_por_mes, egresos_por_mes = {}, {}
+    for v in ventas:
+        bucket = timezone.localtime(v.confirmada_en).date().replace(day=1)
+        ingresos_por_mes[bucket] = ingresos_por_mes.get(bucket, Decimal("0")) + v.total
+    for c in compras:
+        bucket = timezone.localtime(c.creado_en).date().replace(day=1)
+        egresos_por_mes[bucket] = egresos_por_mes.get(bucket, Decimal("0")) + c.total
+    for n in nominas:
+        bucket = timezone.localtime(n.creado_en).date().replace(day=1)
+        egresos_por_mes[bucket] = egresos_por_mes.get(bucket, Decimal("0")) + n.total_pagar
+
+    etiquetas, ingresos, egresos, cursor = [], [], [], inicio
+    while cursor <= hoy:
+        etiquetas.append(MESES_ABREV[cursor.month])
+        ingresos.append(float(ingresos_por_mes.get(cursor, Decimal("0"))))
+        egresos.append(float(egresos_por_mes.get(cursor, Decimal("0"))))
+        cursor = (cursor.replace(day=28) + timedelta(days=4)).replace(day=1)
+    return etiquetas, ingresos, egresos
 
 
 @login_required
@@ -47,6 +117,9 @@ def resumen(request):
     cxc_vencidas_count = cxc_vencidas_qs.count()
     cxc_vencidas_total = cxc_vencidas_qs.aggregate(total=Sum("saldo_pendiente"))["total"] or Decimal("0")
 
+    aging = _agrupar_por_antiguedad(cxc_pendientes_qs, hoy)
+    chart_labels, chart_ingresos, chart_egresos = _serie_flujo_caja(request.empresa)
+
     context = {
         "total_por_cobrar": total_por_cobrar,
         "total_por_pagar": total_por_pagar,
@@ -57,6 +130,10 @@ def resumen(request):
         "cxp_pendientes": cxp_pendientes,
         "cxc_vencidas_count": cxc_vencidas_count,
         "cxc_vencidas_total": cxc_vencidas_total,
+        "aging": aging,
+        "chart_labels": json.dumps(chart_labels),
+        "chart_ingresos": json.dumps(chart_ingresos),
+        "chart_egresos": json.dumps(chart_egresos),
     }
     return render(request, "finanzas/resumen.html", context)
 
@@ -97,6 +174,17 @@ def cxc_lista(request):
     vencidas_count = vencidas_qs.count()
     vencidas_total = vencidas_qs.aggregate(total=Sum("saldo_pendiente"))["total"] or Decimal("0")
 
+    cuentas = list(cuentas)
+    for cuenta in cuentas:
+        cuenta.bucket_antiguedad = _bucket_antiguedad(cuenta, hoy) if cuenta.estado in (
+            CuentaPorCobrar.PENDIENTE, CuentaPorCobrar.PARCIAL
+        ) else None
+
+    aging_pendientes_qs = CuentaPorCobrar.objects.filter(
+        empresa=request.empresa, estado__in=[CuentaPorCobrar.PENDIENTE, CuentaPorCobrar.PARCIAL],
+    )
+    aging = _agrupar_por_antiguedad(aging_pendientes_qs, hoy)
+
     return render(request, "finanzas/cxc_lista.html", {
         "cuentas": cuentas, "estado": estado,
         "clientes": Cliente.objects.filter(
@@ -105,6 +193,7 @@ def cxc_lista(request):
         "cliente_id": cliente_id, "solo_vencidas": solo_vencidas,
         "saldo_por_cliente": saldo_por_cliente,
         "vencidas_count": vencidas_count, "vencidas_total": vencidas_total,
+        "aging": aging,
     })
 
 

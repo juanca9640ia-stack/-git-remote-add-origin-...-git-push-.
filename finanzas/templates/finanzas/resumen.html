@@ -31,10 +31,38 @@
     </div>
 </div>
 
-<div class="card card-kpi p-3 mb-4" style="max-width:320px;">
-    <small class="text-muted text-uppercase">Balance (ingresos - egresos)</small>
-    <div class="fs-3 fw-bold {% if balance >= 0 %}text-success{% else %}text-danger{% endif %}">
-        {{ balance|cop }}
+<div class="row g-3 mb-4">
+    <div class="col-lg-8">
+        <div class="card card-kpi h-100">
+            <div class="card-header bg-white fw-bold d-flex justify-content-between align-items-center">
+                <span>Flujo de caja · últimos 6 meses</span>
+                <span class="{% if balance >= 0 %}text-success{% else %}text-danger{% endif %} small fw-bold">
+                    Balance: {{ balance|cop }}
+                </span>
+            </div>
+            <div class="p-3">
+                <canvas id="chartFlujoCaja" height="90"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card card-kpi h-100">
+            <div class="card-header bg-white fw-bold">Antigüedad de cartera (CxC)</div>
+            <div class="table-responsive">
+                <table class="table table-sm mb-0">
+                    <thead><tr><th>Bucket</th><th class="text-end">Cuentas</th><th class="text-end">Saldo</th></tr></thead>
+                    <tbody>
+                    {% for bucket in aging %}
+                        <tr class="{% if bucket.etiqueta != 'Al día' and bucket.cantidad %}text-danger{% endif %}">
+                            <td>{{ bucket.etiqueta }}</td>
+                            <td class="text-end">{{ bucket.cantidad }}</td>
+                            <td class="text-end">{{ bucket.total|cop }}</td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -88,4 +116,31 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script>
+(function () {
+    var canvas = document.getElementById('chartFlujoCaja');
+    if (!canvas || typeof Chart === 'undefined') return;
+    new Chart(canvas.getContext('2d'), {
+        type: 'bar',
+        data: {
+            labels: {{ chart_labels|safe }},
+            datasets: [
+                { label: 'Ingresos', data: {{ chart_ingresos|safe }}, backgroundColor: '#107e3e' },
+                { label: 'Egresos', data: {{ chart_egresos|safe }}, backgroundColor: '#b00020' },
+            ],
+        },
+        options: {
+            responsive: true,
+            plugins: { legend: { position: 'bottom' } },
+            scales: {
+                y: { beginAtZero: true, ticks: { callback: function (v) { return '$' + v.toLocaleString('es-CO'); } } },
+            },
+        },
+    });
+})();
+</script>
 {% endblock %}

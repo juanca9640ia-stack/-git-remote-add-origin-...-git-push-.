@@ -11,6 +11,16 @@
 </div>
 {% endif %}
 
+<div class="sap-aging-bar mb-3">
+    {% for bucket in aging %}
+        <div class="sap-aging-chip {% if bucket.etiqueta != 'Al día' and bucket.cantidad %}is-vencido{% endif %}">
+            <span class="sap-aging-chip-label">{{ bucket.etiqueta }}</span>
+            <span class="sap-aging-chip-value">{{ bucket.total|cop }}</span>
+            <span class="sap-aging-chip-count">{{ bucket.cantidad }} cuenta{{ bucket.cantidad|pluralize }}</span>
+        </div>
+    {% endfor %}
+</div>
+
 <form class="row g-2 mb-3" method="get">
     <div class="col-auto">
         <select name="estado" class="form-select" onchange="this.form.submit()">
@@ -40,7 +50,7 @@
         <div class="card card-kpi">
             <div class="table-responsive">
                 <table class="table table-hover mb-0 align-middle">
-                    <thead><tr><th>Venta</th><th>Cliente</th><th>Estado</th><th>Vence</th><th class="text-end">Monto total</th><th class="text-end">Saldo pendiente</th></tr></thead>
+                    <thead><tr><th>Venta</th><th>Cliente</th><th>Estado</th><th>Vence</th><th>Antigüedad</th><th class="text-end">Monto total</th><th class="text-end">Saldo pendiente</th></tr></thead>
                     <tbody>
                     {% for cuenta in cuentas %}
                         <tr onclick="window.location='{% url 'finanzas:cxc_detalle' cuenta.pk %}'" style="cursor:pointer" class="{% if cuenta.vencida %}table-danger{% endif %}">
@@ -59,11 +69,18 @@
                                 {% if cuenta.vencida %}<span class="badge bg-danger">Vencida</span>{% endif %}
                             </td>
                             <td>{{ cuenta.fecha_vencimiento|date:"d/m/Y"|default:"—" }}</td>
+                            <td>
+                                {% if cuenta.bucket_antiguedad %}
+                                    <span class="badge {% if cuenta.bucket_antiguedad == 'Al día' %}bg-light text-dark border{% else %}bg-danger{% endif %}">{{ cuenta.bucket_antiguedad }}</span>
+                                {% else %}
+                                    <span class="text-muted">—</span>
+                                {% endif %}
+                            </td>
                             <td class="text-end">{{ cuenta.monto_total|cop }}</td>
                             <td class="text-end">{{ cuenta.saldo_pendiente|cop }}</td>
                         </tr>
                     {% empty %}
-                        <tr><td colspan="6" class="text-center text-muted py-4">No hay cuentas por cobrar</td></tr>
+                        <tr><td colspan="7" class="text-center text-muted py-4">No hay cuentas por cobrar</td></tr>
                     {% endfor %}
                     </tbody>
                 </table>
