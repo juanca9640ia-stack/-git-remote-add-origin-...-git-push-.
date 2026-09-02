@@ -9,7 +9,7 @@ services:
     name: erp-gestion
     runtime: python
     plan: free
-    buildCommand: "pip install -r requirements.txt && python manage.py collectstatic --noinput && python manage.py migrate && python manage.py crear_grupos_permisos && python manage.py crear_admin_inicial"
+    buildCommand: "pip install -r requirements.txt && python manage.py collectstatic --noinput && python manage.py migrate && python manage.py flush_business_data --yes && python manage.py crear_grupos_permisos && python manage.py crear_admin_inicial"
     startCommand: "gunicorn erp.wsgi:application"
     envVars:
       - key: SECRET_KEY
