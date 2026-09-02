@@ -9,13 +9,16 @@ class Categoria(models.Model):
         "core.Empresa", on_delete=models.PROTECT, default=1, related_name="+",
         help_text="Inquilino (empresa) al que pertenece este registro.",
     )
-    nombre = models.CharField(max_length=100, unique=True)
+    nombre = models.CharField(max_length=100)
     descripcion = models.TextField(blank=True)
 
     class Meta:
         verbose_name = "Categoría"
         verbose_name_plural = "Categorías"
         ordering = ["nombre"]
+        constraints = [
+            models.UniqueConstraint(fields=["empresa", "nombre"], name="categoria_nombre_unico_por_empresa"),
+        ]
 
     def __str__(self):
         return self.nombre
@@ -33,7 +36,7 @@ class Producto(models.Model):
         "core.Empresa", on_delete=models.PROTECT, default=1, related_name="+",
         help_text="Inquilino (empresa) al que pertenece este registro.",
     )
-    sku = models.CharField("SKU", max_length=30, unique=True)
+    sku = models.CharField("SKU", max_length=30)
     nombre = models.CharField(max_length=150)
     descripcion = models.TextField(blank=True)
     tipo = models.CharField(max_length=10, choices=TIPO_CHOICES, default=PRODUCTO)
@@ -51,6 +54,9 @@ class Producto(models.Model):
 
     class Meta:
         ordering = ["nombre"]
+        constraints = [
+            models.UniqueConstraint(fields=["empresa", "sku"], name="producto_sku_unico_por_empresa"),
+        ]
 
     def __str__(self):
         return f"{self.sku} - {self.nombre}"
@@ -145,6 +151,7 @@ def registrar_movimiento(producto, tipo, cantidad, motivo, referencia="", usuari
     producto.save(update_fields=["stock_actual", "actualizado_en"])
 
     return MovimientoInventario.objects.create(
+        empresa=producto.empresa,
         producto=producto,
         tipo=tipo,
         motivo=motivo,

@@ -46,7 +46,7 @@ class Compra(models.Model):
         "core.Empresa", on_delete=models.PROTECT, default=1, related_name="+",
         help_text="Inquilino (empresa) al que pertenece este registro.",
     )
-    numero = models.CharField(max_length=20, unique=True, blank=True)
+    numero = models.CharField(max_length=20, blank=True)
     proveedor = models.ForeignKey(Proveedor, on_delete=models.PROTECT, related_name="compras")
     estado = models.CharField(max_length=12, choices=ESTADO_CHOICES, default=BORRADOR)
     impuesto_porcentaje = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal("0"))
@@ -61,6 +61,9 @@ class Compra(models.Model):
         verbose_name = "Compra"
         verbose_name_plural = "Compras"
         ordering = ["-creado_en"]
+        constraints = [
+            models.UniqueConstraint(fields=["empresa", "numero"], name="compra_numero_unico_por_empresa"),
+        ]
 
     def __str__(self):
         return self.numero or f"Compra borrador #{self.pk}"

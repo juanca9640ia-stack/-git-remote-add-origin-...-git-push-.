@@ -16,7 +16,7 @@ from .models import Categoria, MovimientoInventario, Producto, registrar_movimie
 @login_required
 def producto_lista(request):
     query = request.GET.get("q", "")
-    productos = Producto.objects.select_related("categoria").all()
+    productos = Producto.objects.select_related("categoria").filter(empresa=request.empresa)
     if query:
         productos = productos.filter(
             Q(sku__icontains=query) | Q(nombre__icontains=query)
@@ -34,7 +34,7 @@ def producto_lista(request):
 @login_required
 def servicio_lista(request):
     query = request.GET.get("q", "")
-    servicios = Producto.objects.filter(tipo=Producto.SERVICIO)
+    servicios = Producto.objects.filter(tipo=Producto.SERVICIO, empresa=request.empresa)
     if query:
         servicios = servicios.filter(Q(sku__icontains=query) | Q(nombre__icontains=query))
     return render(request, "inventario/servicio_lista.html", {"servicios": servicios, "query": query})
@@ -42,7 +42,7 @@ def servicio_lista(request):
 
 @login_required
 def producto_detalle(request, pk):
-    producto = get_object_or_404(Producto, pk=pk)
+    producto = get_object_or_404(Producto, pk=pk, empresa=request.empresa)
     movimientos = producto.movimientos.select_related("usuario")[:30]
     ajuste_form = AjusteInventarioForm()
     return render(request, "inventario/producto_detalle.html", {
@@ -54,11 +54,12 @@ def producto_detalle(request, pk):
 
 @login_required
 def producto_form(request, pk=None):
-    producto = get_object_or_404(Producto, pk=pk) if pk else None
+    producto = get_object_or_404(Producto, pk=pk, empresa=request.empresa) if pk else None
     if request.method == "POST":
         form = ProductoForm(request.POST, instance=producto)
         if form.is_valid():
             obj = form.save(commit=False)
+            obj.empresa = request.empresa
             if not pk:
                 obj.stock_actual = obj.stock_actual or 0
             obj.save()
@@ -76,6 +77,7 @@ def producto_crear_rapido(request):
     form = ProductoRapidoForm(request.POST)
     if form.is_valid():
         producto = form.save(commit=False)
+        producto.empresa = request.empresa
         if not producto.sku:
             producto.sku = f"AUTO-{uuid.uuid4().hex[:8].upper()}"
         producto.save()
@@ -89,7 +91,7 @@ def producto_crear_rapido(request):
 
 @login_required
 def producto_ajustar_stock(request, pk):
-    producto = get_object_or_404(Producto, pk=pk)
+    producto = get_object_or_404(Producto, pk=pk, empresa=request.empresa)
     if request.method == "POST":
         form = AjusteInventarioForm(request.POST)
         if form.is_valid():
@@ -113,11 +115,13 @@ def producto_ajustar_stock(request, pk):
 
 @login_required
 def categoria_lista(request):
-    categorias = Categoria.objects.all()
+    categorias = Categoria.objects.filter(empresa=request.empresa)
     if request.method == "POST":
         form = CategoriaForm(request.POST)
         if form.is_valid():
-            form.save()
+            categoria = form.save(commit=False)
+            categoria.empresa = request.empresa
+            categoria.save()
             messages.success(request, "Categoría creada.")
             return redirect("inventario:categoria_lista")
     else:
@@ -127,5 +131,8 @@ def categoria_lista(request):
 
 @login_required
 def movimiento_lista(request):
-    movimientos = MovimientoInventario.objects.select_related("producto", "usuario")[:200]
+    movimientos = (
+        MovimientoInventario.objects.select_related("producto", "usuario")
+        .filter(empresa=request.empresa)[:200]
+    )
     return render(request, "inventario/movimiento_lista.html", {"movimientos": movimientos})

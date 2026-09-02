@@ -141,17 +141,17 @@ class VentaFacturacionTests(TestCase):
             venta2.facturar("1001")
 
     def test_sugerencia_vacia_sin_facturas_previas(self):
-        self.assertEqual(Venta.siguiente_numero_factura_sugerido(), "")
+        self.assertEqual(Venta.siguiente_numero_factura_sugerido(self.cliente.empresa), "")
 
     def test_sugerencia_continua_el_consecutivo(self):
         venta1 = self._crear_venta_confirmada()
         venta1.facturar("1001")
-        self.assertEqual(Venta.siguiente_numero_factura_sugerido(), "1002")
+        self.assertEqual(Venta.siguiente_numero_factura_sugerido(self.cliente.empresa), "1002")
 
         venta2 = self._crear_venta_confirmada()
-        venta2.facturar(Venta.siguiente_numero_factura_sugerido())
+        venta2.facturar(Venta.siguiente_numero_factura_sugerido(self.cliente.empresa))
         self.assertEqual(venta2.numero_factura, "1002")
-        self.assertEqual(Venta.siguiente_numero_factura_sugerido(), "1003")
+        self.assertEqual(Venta.siguiente_numero_factura_sugerido(self.cliente.empresa), "1003")
 
     def test_corregir_factura(self):
         venta = self._crear_venta_confirmada()

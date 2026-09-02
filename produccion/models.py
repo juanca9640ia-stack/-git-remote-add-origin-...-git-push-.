@@ -65,7 +65,7 @@ class OrdenProduccion(models.Model):
         "core.Empresa", on_delete=models.PROTECT, default=1, related_name="+",
         help_text="Inquilino (empresa) al que pertenece este registro.",
     )
-    numero = models.CharField(max_length=20, unique=True, blank=True)
+    numero = models.CharField(max_length=20, blank=True)
     producto = models.ForeignKey(Producto, on_delete=models.PROTECT, related_name="ordenes_produccion")
     cantidad = models.PositiveIntegerField(default=1)
     estado = models.CharField(max_length=12, choices=ESTADO_CHOICES, default=PLANIFICADA)
@@ -80,6 +80,9 @@ class OrdenProduccion(models.Model):
         verbose_name = "Orden de producción"
         verbose_name_plural = "Órdenes de producción"
         ordering = ["-creado_en"]
+        constraints = [
+            models.UniqueConstraint(fields=["empresa", "numero"], name="ordenproduccion_numero_unico_por_empresa"),
+        ]
 
     def __str__(self):
         return self.numero or f"Orden borrador #{self.pk}"

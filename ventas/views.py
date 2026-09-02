@@ -16,18 +16,18 @@ from .forms import (
 from .models import Cliente, Cotizacion, CuentaCobro, Venta
 
 
-def _precios_producto_json():
-    return {str(p.pk): str(p.precio_venta) for p in Producto.objects.filter(activo=True)}
+def _precios_producto_json(empresa):
+    return {str(p.pk): str(p.precio_venta) for p in Producto.objects.filter(activo=True, empresa=empresa)}
 
 
-def _descripciones_producto_json():
-    return {str(p.pk): p.descripcion for p in Producto.objects.filter(activo=True)}
+def _descripciones_producto_json(empresa):
+    return {str(p.pk): p.descripcion for p in Producto.objects.filter(activo=True, empresa=empresa)}
 
 
 @login_required
 def cliente_lista(request):
     query = request.GET.get("q", "")
-    clientes = Cliente.objects.all()
+    clientes = Cliente.objects.filter(empresa=request.empresa)
     if query:
         clientes = clientes.filter(Q(nombre__icontains=query) | Q(documento__icontains=query))
     return render(request, "ventas/cliente_lista.html", {"clientes": clientes, "query": query})
@@ -35,11 +35,13 @@ def cliente_lista(request):
 
 @login_required
 def cliente_form(request, pk=None):
-    cliente = get_object_or_404(Cliente, pk=pk) if pk else None
+    cliente = get_object_or_404(Cliente, pk=pk, empresa=request.empresa) if pk else None
     if request.method == "POST":
         form = ClienteForm(request.POST, instance=cliente)
         if form.is_valid():
-            obj = form.save()
+            obj = form.save(commit=False)
+            obj.empresa = request.empresa
+            obj.save()
             messages.success(request, f"Cliente '{obj.nombre}' guardado correctamente.")
             return redirect("ventas:cliente_lista")
     else:
@@ -53,14 +55,16 @@ def cliente_crear_rapido(request):
     """Crea un cliente desde el modal de ventas/cotizaciones sin salir del formulario."""
     form = ClienteRapidoForm(request.POST)
     if form.is_valid():
-        cliente = form.save()
+        cliente = form.save(commit=False)
+        cliente.empresa = request.empresa
+        cliente.save()
         return JsonResponse({"ok": True, "id": cliente.pk, "nombre": str(cliente)})
     return JsonResponse({"ok": False, "errors": form.errors}, status=400)
 
 
 @login_required
 def venta_lista(request):
-    ventas = Venta.objects.select_related("cliente", "vendedor").all()
+    ventas = Venta.objects.select_related("cliente", "vendedor").filter(empresa=request.empresa)
     estado = request.GET.get("estado", "")
     if estado:
         ventas = ventas.filter(estado=estado)
@@ -69,10 +73,12 @@ def venta_lista(request):
 
 @login_required
 def venta_detalle(request, pk):
-    venta = get_object_or_404(Venta.objects.select_related("cliente", "vendedor"), pk=pk)
+    venta = get_object_or_404(
+        Venta.objects.select_related("cliente", "vendedor"), pk=pk, empresa=request.empresa
+    )
     sugerencia_factura = ""
     if venta.estado == Venta.CONFIRMADA and not venta.numero_factura:
-        sugerencia_factura = Venta.siguiente_numero_factura_sugerido()
+        sugerencia_factura = Venta.siguiente_numero_factura_sugerido(request.empresa)
     return render(request, "ventas/venta_detalle.html", {
         "venta": venta, "sugerencia_factura": sugerencia_factura,
     })
@@ -82,10 +88,11 @@ def venta_detalle(request, pk):
 @transaction.atomic
 def venta_crear(request):
     if request.method == "POST":
-        form = VentaForm(request.POST)
-        formset = LineaVentaFormSet(request.POST)
+        form = VentaForm(request.POST, empresa=request.empresa)
+        formset = LineaVentaFormSet(request.POST, form_kwargs={"empresa": request.empresa})
         if form.is_valid() and formset.is_valid():
             venta = form.save(commit=False)
+            venta.empresa = request.empresa
             venta.vendedor = request.user
             venta.save()
             formset.instance = venta
@@ -93,44 +100,44 @@ def venta_crear(request):
             messages.success(request, f"Venta {venta.numero} creada como borrador. Confírmala para descontar inventario.")
             return redirect("ventas:venta_detalle", pk=venta.pk)
     else:
-        form = VentaForm()
-        formset = LineaVentaFormSet()
+        form = VentaForm(empresa=request.empresa)
+        formset = LineaVentaFormSet(form_kwargs={"empresa": request.empresa})
     return render(request, "ventas/venta_form.html", {
         "form": form, "formset": formset, "venta": None,
-        "precios_producto": _precios_producto_json(),
-        "descripciones_producto": _descripciones_producto_json(),
+        "precios_producto": _precios_producto_json(request.empresa),
+        "descripciones_producto": _descripciones_producto_json(request.empresa),
     })
 
 
 @login_required
 @transaction.atomic
 def venta_editar(request, pk):
-    venta = get_object_or_404(Venta, pk=pk)
+    venta = get_object_or_404(Venta, pk=pk, empresa=request.empresa)
     if not venta.editable:
         messages.error(request, "Esta venta ya no se puede editar.")
         return redirect("ventas:venta_detalle", pk=venta.pk)
 
     if request.method == "POST":
-        form = VentaForm(request.POST, instance=venta)
-        formset = LineaVentaFormSet(request.POST, instance=venta)
+        form = VentaForm(request.POST, instance=venta, empresa=request.empresa)
+        formset = LineaVentaFormSet(request.POST, instance=venta, form_kwargs={"empresa": request.empresa})
         if form.is_valid() and formset.is_valid():
             form.save()
             formset.save()
             messages.success(request, "Venta actualizada.")
             return redirect("ventas:venta_detalle", pk=venta.pk)
     else:
-        form = VentaForm(instance=venta)
-        formset = LineaVentaFormSet(instance=venta)
+        form = VentaForm(instance=venta, empresa=request.empresa)
+        formset = LineaVentaFormSet(instance=venta, form_kwargs={"empresa": request.empresa})
     return render(request, "ventas/venta_form.html", {
         "form": form, "formset": formset, "venta": venta,
-        "precios_producto": _precios_producto_json(),
-        "descripciones_producto": _descripciones_producto_json(),
+        "precios_producto": _precios_producto_json(request.empresa),
+        "descripciones_producto": _descripciones_producto_json(request.empresa),
     })
 
 
 @login_required
 def venta_confirmar(request, pk):
-    venta = get_object_or_404(Venta, pk=pk)
+    venta = get_object_or_404(Venta, pk=pk, empresa=request.empresa)
     if request.method == "POST":
         try:
             venta.confirmar(usuario=request.user)
@@ -142,7 +149,7 @@ def venta_confirmar(request, pk):
 
 @login_required
 def venta_anular(request, pk):
-    venta = get_object_or_404(Venta, pk=pk)
+    venta = get_object_or_404(Venta, pk=pk, empresa=request.empresa)
     if request.method == "POST":
         try:
             venta.anular(usuario=request.user)
@@ -154,7 +161,7 @@ def venta_anular(request, pk):
 
 @login_required
 def venta_facturar(request, pk):
-    venta = get_object_or_404(Venta, pk=pk)
+    venta = get_object_or_404(Venta, pk=pk, empresa=request.empresa)
     if request.method == "POST":
         try:
             venta.facturar(request.POST.get("numero_factura", ""))
@@ -166,7 +173,7 @@ def venta_facturar(request, pk):
 
 @login_required
 def venta_corregir_factura(request, pk):
-    venta = get_object_or_404(Venta, pk=pk)
+    venta = get_object_or_404(Venta, pk=pk, empresa=request.empresa)
     if request.method == "POST":
         try:
             venta.corregir_factura(request.POST.get("numero_factura", ""))
@@ -178,7 +185,7 @@ def venta_corregir_factura(request, pk):
 
 @login_required
 def cotizacion_lista(request):
-    cotizaciones = Cotizacion.objects.select_related("cliente", "vendedor").all()
+    cotizaciones = Cotizacion.objects.select_related("cliente", "vendedor").filter(empresa=request.empresa)
     estado = request.GET.get("estado", "")
     if estado:
         cotizaciones = cotizaciones.filter(estado=estado)
@@ -187,7 +194,9 @@ def cotizacion_lista(request):
 
 @login_required
 def cotizacion_detalle(request, pk):
-    cotizacion = get_object_or_404(Cotizacion.objects.select_related("cliente", "vendedor", "venta"), pk=pk)
+    cotizacion = get_object_or_404(
+        Cotizacion.objects.select_related("cliente", "vendedor", "venta"), pk=pk, empresa=request.empresa
+    )
     return render(request, "ventas/cotizacion_detalle.html", {"cotizacion": cotizacion})
 
 
@@ -195,10 +204,11 @@ def cotizacion_detalle(request, pk):
 @transaction.atomic
 def cotizacion_crear(request):
     if request.method == "POST":
-        form = CotizacionForm(request.POST)
-        formset = LineaCotizacionFormSet(request.POST)
+        form = CotizacionForm(request.POST, empresa=request.empresa)
+        formset = LineaCotizacionFormSet(request.POST, form_kwargs={"empresa": request.empresa})
         if form.is_valid() and formset.is_valid():
             cotizacion = form.save(commit=False)
+            cotizacion.empresa = request.empresa
             cotizacion.vendedor = request.user
             cotizacion.save()
             formset.instance = cotizacion
@@ -206,44 +216,46 @@ def cotizacion_crear(request):
             messages.success(request, f"Cotización {cotizacion.numero} creada como borrador.")
             return redirect("ventas:cotizacion_detalle", pk=cotizacion.pk)
     else:
-        form = CotizacionForm()
-        formset = LineaCotizacionFormSet()
+        form = CotizacionForm(empresa=request.empresa)
+        formset = LineaCotizacionFormSet(form_kwargs={"empresa": request.empresa})
     return render(request, "ventas/cotizacion_form.html", {
         "form": form, "formset": formset, "cotizacion": None,
-        "precios_producto": _precios_producto_json(),
-        "descripciones_producto": _descripciones_producto_json(),
+        "precios_producto": _precios_producto_json(request.empresa),
+        "descripciones_producto": _descripciones_producto_json(request.empresa),
     })
 
 
 @login_required
 @transaction.atomic
 def cotizacion_editar(request, pk):
-    cotizacion = get_object_or_404(Cotizacion, pk=pk)
+    cotizacion = get_object_or_404(Cotizacion, pk=pk, empresa=request.empresa)
     if not cotizacion.editable:
         messages.error(request, "Esta cotización ya no se puede editar.")
         return redirect("ventas:cotizacion_detalle", pk=cotizacion.pk)
 
     if request.method == "POST":
-        form = CotizacionForm(request.POST, instance=cotizacion)
-        formset = LineaCotizacionFormSet(request.POST, instance=cotizacion)
+        form = CotizacionForm(request.POST, instance=cotizacion, empresa=request.empresa)
+        formset = LineaCotizacionFormSet(
+            request.POST, instance=cotizacion, form_kwargs={"empresa": request.empresa}
+        )
         if form.is_valid() and formset.is_valid():
             form.save()
             formset.save()
             messages.success(request, "Cotización actualizada.")
             return redirect("ventas:cotizacion_detalle", pk=cotizacion.pk)
     else:
-        form = CotizacionForm(instance=cotizacion)
-        formset = LineaCotizacionFormSet(instance=cotizacion)
+        form = CotizacionForm(instance=cotizacion, empresa=request.empresa)
+        formset = LineaCotizacionFormSet(instance=cotizacion, form_kwargs={"empresa": request.empresa})
     return render(request, "ventas/cotizacion_form.html", {
         "form": form, "formset": formset, "cotizacion": cotizacion,
-        "precios_producto": _precios_producto_json(),
-        "descripciones_producto": _descripciones_producto_json(),
+        "precios_producto": _precios_producto_json(request.empresa),
+        "descripciones_producto": _descripciones_producto_json(request.empresa),
     })
 
 
 @login_required
 def cotizacion_marcar_enviada(request, pk):
-    cotizacion = get_object_or_404(Cotizacion, pk=pk)
+    cotizacion = get_object_or_404(Cotizacion, pk=pk, empresa=request.empresa)
     if request.method == "POST":
         try:
             cotizacion.marcar_enviada()
@@ -255,7 +267,7 @@ def cotizacion_marcar_enviada(request, pk):
 
 @login_required
 def cotizacion_marcar_aceptada(request, pk):
-    cotizacion = get_object_or_404(Cotizacion, pk=pk)
+    cotizacion = get_object_or_404(Cotizacion, pk=pk, empresa=request.empresa)
     if request.method == "POST":
         try:
             cotizacion.marcar_aceptada(firmado_por=request.POST.get("firmado_por", "").strip())
@@ -267,7 +279,7 @@ def cotizacion_marcar_aceptada(request, pk):
 
 @login_required
 def cotizacion_marcar_rechazada(request, pk):
-    cotizacion = get_object_or_404(Cotizacion, pk=pk)
+    cotizacion = get_object_or_404(Cotizacion, pk=pk, empresa=request.empresa)
     if request.method == "POST":
         try:
             cotizacion.marcar_rechazada()
@@ -279,7 +291,7 @@ def cotizacion_marcar_rechazada(request, pk):
 
 @login_required
 def cotizacion_convertir_venta(request, pk):
-    cotizacion = get_object_or_404(Cotizacion, pk=pk)
+    cotizacion = get_object_or_404(Cotizacion, pk=pk, empresa=request.empresa)
     if request.method == "POST":
         try:
             venta = cotizacion.convertir_a_venta(usuario=request.user)
@@ -293,7 +305,8 @@ def cotizacion_convertir_venta(request, pk):
 @login_required
 def cotizacion_imprimir(request, pk):
     cotizacion = get_object_or_404(
-        Cotizacion.objects.select_related("cliente", "vendedor").prefetch_related("lineas__producto"), pk=pk
+        Cotizacion.objects.select_related("cliente", "vendedor").prefetch_related("lineas__producto"),
+        pk=pk, empresa=request.empresa,
     )
     return render(request, "ventas/cotizacion_pdf.html", {
         "cotizacion": cotizacion, "empresa": request.empresa,
@@ -302,7 +315,7 @@ def cotizacion_imprimir(request, pk):
 
 @login_required
 def cuenta_cobro_lista(request):
-    cuentas = CuentaCobro.objects.select_related("cliente").all()
+    cuentas = CuentaCobro.objects.select_related("cliente").filter(empresa=request.empresa)
     estado = request.GET.get("estado", "")
     if estado:
         cuentas = cuentas.filter(estado=estado)
@@ -311,34 +324,37 @@ def cuenta_cobro_lista(request):
 
 @login_required
 def cuenta_cobro_detalle(request, pk):
-    cuenta = get_object_or_404(CuentaCobro.objects.select_related("cliente", "venta", "creado_por"), pk=pk)
+    cuenta = get_object_or_404(
+        CuentaCobro.objects.select_related("cliente", "venta", "creado_por"), pk=pk, empresa=request.empresa
+    )
     return render(request, "ventas/cuenta_cobro_detalle.html", {"cuenta": cuenta})
 
 
 @login_required
 def cuenta_cobro_form(request, pk=None):
-    cuenta = get_object_or_404(CuentaCobro, pk=pk) if pk else None
+    cuenta = get_object_or_404(CuentaCobro, pk=pk, empresa=request.empresa) if pk else None
     if cuenta and not cuenta.editable:
         messages.error(request, "Esta cuenta de cobro ya no se puede editar.")
         return redirect("ventas:cuenta_cobro_detalle", pk=cuenta.pk)
 
     if request.method == "POST":
-        form = CuentaCobroForm(request.POST, instance=cuenta)
+        form = CuentaCobroForm(request.POST, instance=cuenta, empresa=request.empresa)
         if form.is_valid():
             obj = form.save(commit=False)
             if not cuenta:
+                obj.empresa = request.empresa
                 obj.creado_por = request.user
             obj.save()
             messages.success(request, f"Cuenta de cobro '{obj.numero}' guardada correctamente.")
             return redirect("ventas:cuenta_cobro_detalle", pk=obj.pk)
     else:
-        form = CuentaCobroForm(instance=cuenta)
+        form = CuentaCobroForm(instance=cuenta, empresa=request.empresa)
     return render(request, "ventas/cuenta_cobro_form.html", {"form": form, "cuenta": cuenta})
 
 
 @login_required
 def cuenta_cobro_emitir(request, pk):
-    cuenta = get_object_or_404(CuentaCobro, pk=pk)
+    cuenta = get_object_or_404(CuentaCobro, pk=pk, empresa=request.empresa)
     if request.method == "POST":
         try:
             cuenta.emitir()
@@ -350,7 +366,7 @@ def cuenta_cobro_emitir(request, pk):
 
 @login_required
 def cuenta_cobro_marcar_pagada(request, pk):
-    cuenta = get_object_or_404(CuentaCobro, pk=pk)
+    cuenta = get_object_or_404(CuentaCobro, pk=pk, empresa=request.empresa)
     if request.method == "POST":
         try:
             cuenta.marcar_pagada()
@@ -362,7 +378,7 @@ def cuenta_cobro_marcar_pagada(request, pk):
 
 @login_required
 def cuenta_cobro_anular(request, pk):
-    cuenta = get_object_or_404(CuentaCobro, pk=pk)
+    cuenta = get_object_or_404(CuentaCobro, pk=pk, empresa=request.empresa)
     if request.method == "POST":
         try:
             cuenta.anular()
@@ -374,7 +390,9 @@ def cuenta_cobro_anular(request, pk):
 
 @login_required
 def cuenta_cobro_imprimir(request, pk):
-    cuenta = get_object_or_404(CuentaCobro.objects.select_related("cliente", "venta"), pk=pk)
+    cuenta = get_object_or_404(
+        CuentaCobro.objects.select_related("cliente", "venta"), pk=pk, empresa=request.empresa
+    )
     return render(request, "ventas/cuenta_cobro_pdf.html", {
         "cuenta": cuenta, "empresa": request.empresa,
     })

@@ -43,11 +43,14 @@ class Departamento(models.Model):
         "core.Empresa", on_delete=models.PROTECT, default=1, related_name="+",
         help_text="Inquilino (empresa) al que pertenece este registro.",
     )
-    nombre = models.CharField(max_length=100, unique=True)
+    nombre = models.CharField(max_length=100)
     descripcion = models.TextField(blank=True)
 
     class Meta:
         ordering = ["nombre"]
+        constraints = [
+            models.UniqueConstraint(fields=["empresa", "nombre"], name="departamento_nombre_unico_por_empresa"),
+        ]
 
     def __str__(self):
         return self.nombre
@@ -69,7 +72,7 @@ class Empleado(models.Model):
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="empleado"
     )
     nombre_completo = models.CharField(max_length=150)
-    documento = models.CharField("Cédula/Documento", max_length=30, unique=True)
+    documento = models.CharField("Cédula/Documento", max_length=30)
     cargo = models.CharField(max_length=100)
     departamento = models.ForeignKey(
         Departamento, on_delete=models.PROTECT, related_name="empleados", null=True, blank=True
@@ -90,6 +93,9 @@ class Empleado(models.Model):
         permissions = [
             ("marcar_propia_asistencia", "Puede registrar su propia entrada/salida"),
             ("ver_propio_perfil", "Puede ver su propio perfil, asistencia, préstamos y recibos de nómina"),
+        ]
+        constraints = [
+            models.UniqueConstraint(fields=["empresa", "documento"], name="empleado_documento_unico_por_empresa"),
         ]
 
     def __str__(self):
@@ -156,7 +162,7 @@ class Nomina(models.Model):
         help_text="Inquilino (empresa) al que pertenece este registro.",
     )
     periodo = models.CharField(
-        max_length=8, unique=True,
+        max_length=8,
         help_text="Mensual: AAAA-MM (ej. 2026-08). Semanal: AAAA-Www (ej. 2026-W32).",
     )
     estado = models.CharField(max_length=12, choices=ESTADO_CHOICES, default=BORRADOR)
@@ -170,6 +176,9 @@ class Nomina(models.Model):
         verbose_name = "Nómina"
         verbose_name_plural = "Nóminas"
         ordering = ["-periodo"]
+        constraints = [
+            models.UniqueConstraint(fields=["empresa", "periodo"], name="nomina_periodo_unico_por_empresa"),
+        ]
 
     def __str__(self):
         return f"Nómina {self.periodo}"

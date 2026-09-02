@@ -1,6 +1,8 @@
 from django import forms
 from django.forms import inlineformset_factory
 
+from inventario.models import Producto
+
 from .models import Cliente, Cotizacion, CuentaCobro, LineaCotizacion, LineaVenta, Venta
 
 
@@ -35,8 +37,10 @@ class VentaForm(forms.ModelForm):
             "notas": forms.Textarea(attrs={"rows": 2}),
         }
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, empresa=None, **kwargs):
         super().__init__(*args, **kwargs)
+        if empresa is not None:
+            self.fields["cliente"].queryset = Cliente.objects.filter(empresa=empresa)
         for field in self.fields.values():
             field.widget.attrs.setdefault("class", "form-control")
 
@@ -46,8 +50,10 @@ class LineaVentaForm(forms.ModelForm):
         model = LineaVenta
         fields = ["producto", "cantidad", "precio_unitario"]
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, empresa=None, **kwargs):
         super().__init__(*args, **kwargs)
+        if empresa is not None:
+            self.fields["producto"].queryset = Producto.objects.filter(empresa=empresa)
         for field in self.fields.values():
             field.widget.attrs.setdefault("class", "form-control form-control-sm")
 
@@ -71,8 +77,10 @@ class CotizacionForm(forms.ModelForm):
             "fecha_validez": forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
         }
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, empresa=None, **kwargs):
         super().__init__(*args, **kwargs)
+        if empresa is not None:
+            self.fields["cliente"].queryset = Cliente.objects.filter(empresa=empresa)
         for field in self.fields.values():
             field.widget.attrs.setdefault("class", "form-control")
 
@@ -82,8 +90,10 @@ class LineaCotizacionForm(forms.ModelForm):
         model = LineaCotizacion
         fields = ["producto", "cantidad", "precio_unitario"]
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, empresa=None, **kwargs):
         super().__init__(*args, **kwargs)
+        if empresa is not None:
+            self.fields["producto"].queryset = Producto.objects.filter(empresa=empresa)
         for field in self.fields.values():
             field.widget.attrs.setdefault("class", "form-control form-control-sm")
 
@@ -110,10 +120,14 @@ class CuentaCobroForm(forms.ModelForm):
             "fecha": forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
         }
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, empresa=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["venta"].required = False
-        self.fields["venta"].queryset = Venta.objects.filter(estado=Venta.CONFIRMADA).order_by("-creado_en")
+        ventas_confirmadas = Venta.objects.filter(estado=Venta.CONFIRMADA)
+        if empresa is not None:
+            self.fields["cliente"].queryset = Cliente.objects.filter(empresa=empresa)
+            ventas_confirmadas = ventas_confirmadas.filter(empresa=empresa)
+        self.fields["venta"].queryset = ventas_confirmadas.order_by("-creado_en")
         for field in self.fields.values():
             field.widget.attrs.setdefault("class", "form-control")
 

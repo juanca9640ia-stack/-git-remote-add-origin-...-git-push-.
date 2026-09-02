@@ -51,7 +51,7 @@ class Venta(models.Model):
         "core.Empresa", on_delete=models.PROTECT, default=1, related_name="+",
         help_text="Inquilino (empresa) al que pertenece este registro.",
     )
-    numero = models.CharField(max_length=20, unique=True, blank=True)
+    numero = models.CharField(max_length=20, blank=True)
     cliente = models.ForeignKey(Cliente, on_delete=models.PROTECT, related_name="ventas")
     estado = models.CharField(max_length=12, choices=ESTADO_CHOICES, default=BORRADOR)
     impuesto_porcentaje = models.DecimalField(
@@ -65,13 +65,19 @@ class Venta(models.Model):
     creado_en = models.DateTimeField(auto_now_add=True)
     confirmada_en = models.DateTimeField(null=True, blank=True)
     numero_factura = models.CharField(
-        "N° de factura", max_length=30, null=True, blank=True, unique=True,
+        "N° de factura", max_length=30, null=True, blank=True,
         help_text="Consecutivo de tu propia numeración de facturación.",
     )
     facturada_en = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         ordering = ["-creado_en"]
+        constraints = [
+            models.UniqueConstraint(fields=["empresa", "numero"], name="venta_numero_unico_por_empresa"),
+            models.UniqueConstraint(
+                fields=["empresa", "numero_factura"], name="venta_numero_factura_unico_por_empresa"
+            ),
+        ]
 
     def __str__(self):
         return self.numero or f"Venta borrador #{self.pk}"
@@ -152,14 +158,16 @@ class Venta(models.Model):
         self.save(update_fields=["estado"])
 
     @classmethod
-    def siguiente_numero_factura_sugerido(cls):
-        """Sugiere el siguiente consecutivo a partir de la última factura numérica emitida.
+    def siguiente_numero_factura_sugerido(cls, empresa):
+        """Sugiere el siguiente consecutivo a partir de la última factura numérica emitida
+        POR ESA EMPRESA — cada empresa lleva su propio consecutivo de facturación.
 
         Si aún no se ha facturado nada (o el último número no es puramente numérico),
         no hay nada que sugerir: el usuario debe indicar el consecutivo de arranque.
         """
         ultima = (
-            cls.objects.exclude(numero_factura__isnull=True).exclude(numero_factura="")
+            cls.objects.filter(empresa=empresa)
+            .exclude(numero_factura__isnull=True).exclude(numero_factura="")
             .order_by("-facturada_en").first()
         )
         if ultima and ultima.numero_factura.isdigit():
@@ -175,7 +183,7 @@ class Venta(models.Model):
         numero_factura = (numero_factura or "").strip()
         if not numero_factura:
             raise ValidationError("Ingresa el número de factura.")
-        if Venta.objects.filter(numero_factura=numero_factura).exclude(pk=self.pk).exists():
+        if Venta.objects.filter(empresa=self.empresa, numero_factura=numero_factura).exclude(pk=self.pk).exists():
             raise ValidationError(f"Ya existe una factura con el número '{numero_factura}'.")
         self.numero_factura = numero_factura
         self.facturada_en = timezone.now()
@@ -187,7 +195,7 @@ class Venta(models.Model):
         numero_factura = (numero_factura or "").strip()
         if not numero_factura:
             raise ValidationError("Ingresa el número de factura.")
-        if Venta.objects.filter(numero_factura=numero_factura).exclude(pk=self.pk).exists():
+        if Venta.objects.filter(empresa=self.empresa, numero_factura=numero_factura).exclude(pk=self.pk).exists():
             raise ValidationError(f"Ya existe una factura con el número '{numero_factura}'.")
         self.numero_factura = numero_factura
         self.save(update_fields=["numero_factura"])
@@ -235,7 +243,7 @@ class Cotizacion(models.Model):
         "core.Empresa", on_delete=models.PROTECT, default=1, related_name="+",
         help_text="Inquilino (empresa) al que pertenece este registro.",
     )
-    numero = models.CharField(max_length=20, unique=True, blank=True)
+    numero = models.CharField(max_length=20, blank=True)
     cliente = models.ForeignKey(Cliente, on_delete=models.PROTECT, related_name="cotizaciones")
     estado = models.CharField(max_length=12, choices=ESTADO_CHOICES, default=BORRADOR)
     impuesto_porcentaje = models.DecimalField(
@@ -263,6 +271,9 @@ class Cotizacion(models.Model):
         verbose_name = "Cotización"
         verbose_name_plural = "Cotizaciones"
         ordering = ["-creado_en"]
+        constraints = [
+            models.UniqueConstraint(fields=["empresa", "numero"], name="cotizacion_numero_unico_por_empresa"),
+        ]
 
     def __str__(self):
         return self.numero or f"Cotización borrador #{self.pk}"
@@ -331,12 +342,13 @@ class Cotizacion(models.Model):
             raise ValidationError("La cotización no tiene líneas.")
 
         venta = Venta.objects.create(
-            cliente=self.cliente, impuesto_porcentaje=self.impuesto_porcentaje, vendedor=usuario,
-            notas=f"Generada desde la cotización {self.numero}.",
+            empresa=self.empresa, cliente=self.cliente, impuesto_porcentaje=self.impuesto_porcentaje,
+            vendedor=usuario, notas=f"Generada desde la cotización {self.numero}.",
         )
         for linea in self.lineas.select_related("producto"):
             LineaVenta.objects.create(
-                venta=venta, producto=linea.producto, cantidad=linea.cantidad, precio_unitario=linea.precio_unitario,
+                empresa=self.empresa, venta=venta, producto=linea.producto,
+                cantidad=linea.cantidad, precio_unitario=linea.precio_unitario,
             )
         self.venta = venta
         self.save(update_fields=["venta"])
@@ -399,7 +411,7 @@ class CuentaCobro(models.Model):
         "core.Empresa", on_delete=models.PROTECT, default=1, related_name="+",
         help_text="Inquilino (empresa) al que pertenece este registro.",
     )
-    numero = models.CharField(max_length=20, unique=True, blank=True)
+    numero = models.CharField(max_length=20, blank=True)
     estado = models.CharField(max_length=12, choices=ESTADO_CHOICES, default=BORRADOR)
     cliente = models.ForeignKey(Cliente, on_delete=models.PROTECT, related_name="cuentas_cobro")
     venta = models.ForeignKey(
@@ -435,6 +447,9 @@ class CuentaCobro(models.Model):
         verbose_name = "Cuenta de cobro"
         verbose_name_plural = "Cuentas de cobro"
         ordering = ["-creado_en"]
+        constraints = [
+            models.UniqueConstraint(fields=["empresa", "numero"], name="cuentacobro_numero_unico_por_empresa"),
+        ]
 
     def __str__(self):
         return self.numero or f"Cuenta de cobro borrador #{self.pk}"
