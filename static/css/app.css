@@ -101,9 +101,14 @@ h1, h2, h3, h4, h5, h6 {
     overflow-y: auto;
 }
 .sap-nav-section {
+    display: flex; align-items: center; justify-content: space-between; width: 100%;
+    background: none; border: none; cursor: pointer;
     text-transform: uppercase; font-size: .68rem; letter-spacing: .05em;
     color: var(--sap-text-muted); padding: .9rem 1rem .3rem; font-weight: 700;
 }
+.sap-nav-chevron { font-size: .65rem; transition: transform .15s ease; flex-shrink: 0; }
+.sap-nav-group.collapsed .sap-nav-chevron { transform: rotate(-90deg); }
+.sap-nav-group.collapsed .sap-nav-links { display: none; }
 .sap-nav-link {
     display: flex; align-items: center; gap: .65rem; padding: .5rem 1rem;
     color: var(--sap-text); text-decoration: none; font-size: .8125rem;
@@ -114,7 +119,26 @@ h1, h2, h3, h4, h5, h6 {
 .sap-nav-link.active { background: #e5f1fc; border-left-color: var(--sap-blue); color: var(--sap-blue); font-weight: 600; }
 .sap-nav-link.active i { color: var(--sap-blue); }
 
+/* Modo colapsado: solo íconos, con tooltip nativo via title="" */
+body.sap-sidenav-icons .sap-sidenav { width: 60px; }
+body.sap-sidenav-icons .sap-nav-section span,
+body.sap-sidenav-icons .sap-nav-chevron,
+body.sap-sidenav-icons .sap-nav-link span,
+body.sap-sidenav-icons .sap-shellbar-logo span { display: none; }
+body.sap-sidenav-icons .sap-nav-section { justify-content: center; padding: .7rem 0; cursor: default; }
+body.sap-sidenav-icons .sap-nav-link { justify-content: center; padding: .6rem 0; }
+body.sap-sidenav-icons .sap-nav-group.collapsed .sap-nav-links { display: block; }
+
 .sap-content { flex: 1; min-width: 0; padding: 1.5rem; }
+
+.sap-breadcrumb {
+    display: flex; align-items: center; gap: .4rem; font-size: .75rem;
+    color: var(--sap-text-muted); margin-bottom: 1rem;
+}
+.sap-breadcrumb a { color: var(--sap-text-muted); text-decoration: none; }
+.sap-breadcrumb a:hover { color: var(--sap-blue); }
+.sap-breadcrumb .sep { color: var(--sap-border); }
+.sap-breadcrumb .current { color: var(--sap-text); font-weight: 600; }
 
 @media (max-width: 991.98px) {
     .sap-sidenav {

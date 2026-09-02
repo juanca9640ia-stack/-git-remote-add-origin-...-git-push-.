@@ -16,6 +16,9 @@
         <button type="button" class="sap-shellbar-menu-btn d-lg-none" id="sidebarToggle" aria-label="Menú">
             <i class="bi bi-list"></i>
         </button>
+        <button type="button" class="sap-shellbar-icon-btn d-none d-lg-inline-flex" id="sidenavCollapseToggle" aria-label="Contraer/expandir menú" title="Contraer/expandir menú">
+            <i class="bi bi-layout-sidebar-inset"></i>
+        </button>
         <a href="{% url 'dashboard' %}" class="sap-shellbar-logo">
             {% if empresa.logo %}
                 <img src="{{ empresa.logo.url }}" alt="Logo" class="sap-shellbar-logo-img">
@@ -76,134 +79,169 @@
 <div class="sap-layout">
     <nav class="sap-sidenav" id="sapSidenav">
         {% if perms.core.ver_dashboard %}
-        <div class="sap-nav-section">General</div>
-        <a href="{% url 'dashboard' %}" class="sap-nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">
-            <i class="bi bi-speedometer2"></i>Dashboard
-        </a>
+        <div class="sap-nav-group" data-group="inicio">
+            <button type="button" class="sap-nav-section" data-toggle-group><span>Inicio</span><i class="bi bi-chevron-down sap-nav-chevron"></i></button>
+            <div class="sap-nav-links">
+                <a href="{% url 'dashboard' %}" class="sap-nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}" title="Dashboard">
+                    <i class="bi bi-speedometer2"></i><span>Dashboard</span>
+                </a>
+            </div>
+        </div>
         {% endif %}
 
         {% if perms.ventas %}
-        <div class="sap-nav-section">Ventas</div>
-        <a href="{% url 'ventas:venta_lista' %}" class="sap-nav-link {% if 'ventas/ventas' in request.path %}active{% endif %}">
-            <i class="bi bi-receipt"></i>Ventas
-        </a>
-        <a href="{% url 'ventas:cotizacion_lista' %}" class="sap-nav-link {% if 'cotizaciones' in request.path %}active{% endif %}">
-            <i class="bi bi-file-earmark-text"></i>Cotizaciones
-        </a>
-        <a href="{% url 'ventas:cuenta_cobro_lista' %}" class="sap-nav-link {% if 'cuentas-cobro' in request.path %}active{% endif %}">
-            <i class="bi bi-file-earmark-ruled"></i>Cuentas de cobro
-        </a>
-        <a href="{% url 'ventas:cliente_lista' %}" class="sap-nav-link {% if 'clientes' in request.path %}active{% endif %}">
-            <i class="bi bi-people"></i>Clientes
-        </a>
-        {% endif %}
-
-        {% if perms.compras %}
-        <div class="sap-nav-section">Compras</div>
-        <a href="{% url 'compras:compra_lista' %}" class="sap-nav-link {% if 'compras/compras' in request.path %}active{% endif %}">
-            <i class="bi bi-cart-check"></i>Compras
-        </a>
-        <a href="{% url 'compras:proveedor_lista' %}" class="sap-nav-link {% if 'proveedores' in request.path %}active{% endif %}">
-            <i class="bi bi-truck"></i>Proveedores
-        </a>
+        <div class="sap-nav-group" data-group="comercial">
+            <button type="button" class="sap-nav-section" data-toggle-group><span>Comercial</span><i class="bi bi-chevron-down sap-nav-chevron"></i></button>
+            <div class="sap-nav-links">
+                <a href="{% url 'ventas:venta_lista' %}" class="sap-nav-link {% if 'ventas/ventas' in request.path %}active{% endif %}" title="Ventas">
+                    <i class="bi bi-receipt"></i><span>Ventas</span>
+                </a>
+                <a href="{% url 'ventas:cotizacion_lista' %}" class="sap-nav-link {% if 'cotizaciones' in request.path %}active{% endif %}" title="Cotizaciones">
+                    <i class="bi bi-file-earmark-text"></i><span>Cotizaciones</span>
+                </a>
+                <a href="{% url 'ventas:cuenta_cobro_lista' %}" class="sap-nav-link {% if 'cuentas-cobro' in request.path %}active{% endif %}" title="Cuentas de cobro">
+                    <i class="bi bi-file-earmark-ruled"></i><span>Cuentas de cobro</span>
+                </a>
+                <a href="{% url 'ventas:cliente_lista' %}" class="sap-nav-link {% if 'clientes' in request.path %}active{% endif %}" title="Clientes">
+                    <i class="bi bi-people"></i><span>Clientes</span>
+                </a>
+            </div>
+        </div>
         {% endif %}
 
         {% if perms.finanzas %}
-        <div class="sap-nav-section">Finanzas</div>
-        <a href="{% url 'finanzas:resumen' %}" class="sap-nav-link {% if request.resolver_match.url_name == 'resumen' and request.resolver_match.namespace == 'finanzas' %}active{% endif %}">
-            <i class="bi bi-graph-up-arrow"></i>Resumen
-        </a>
-        <a href="{% url 'finanzas:cxc_lista' %}" class="sap-nav-link {% if 'cuentas-por-cobrar' in request.path %}active{% endif %}">
-            <i class="bi bi-cash-coin"></i>Por cobrar
-        </a>
-        <a href="{% url 'finanzas:cxp_lista' %}" class="sap-nav-link {% if 'cuentas-por-pagar' in request.path %}active{% endif %}">
-            <i class="bi bi-wallet2"></i>Por pagar
-        </a>
+        <div class="sap-nav-group" data-group="finanzas">
+            <button type="button" class="sap-nav-section" data-toggle-group><span>Finanzas</span><i class="bi bi-chevron-down sap-nav-chevron"></i></button>
+            <div class="sap-nav-links">
+                <a href="{% url 'finanzas:resumen' %}" class="sap-nav-link {% if request.resolver_match.url_name == 'resumen' and request.resolver_match.namespace == 'finanzas' %}active{% endif %}" title="Resumen">
+                    <i class="bi bi-graph-up-arrow"></i><span>Resumen</span>
+                </a>
+                <a href="{% url 'finanzas:cxc_lista' %}" class="sap-nav-link {% if 'cuentas-por-cobrar' in request.path %}active{% endif %}" title="Por cobrar">
+                    <i class="bi bi-cash-coin"></i><span>Por cobrar</span>
+                </a>
+                <a href="{% url 'finanzas:cxp_lista' %}" class="sap-nav-link {% if 'cuentas-por-pagar' in request.path %}active{% endif %}" title="Por pagar">
+                    <i class="bi bi-wallet2"></i><span>Por pagar</span>
+                </a>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if perms.compras or perms.inventario or perms.produccion %}
+        <div class="sap-nav-group" data-group="operaciones">
+            <button type="button" class="sap-nav-section" data-toggle-group><span>Operaciones</span><i class="bi bi-chevron-down sap-nav-chevron"></i></button>
+            <div class="sap-nav-links">
+                {% if perms.compras %}
+                <a href="{% url 'compras:compra_lista' %}" class="sap-nav-link {% if 'compras/compras' in request.path %}active{% endif %}" title="Compras">
+                    <i class="bi bi-cart-check"></i><span>Compras</span>
+                </a>
+                <a href="{% url 'compras:proveedor_lista' %}" class="sap-nav-link {% if 'proveedores' in request.path %}active{% endif %}" title="Proveedores">
+                    <i class="bi bi-truck"></i><span>Proveedores</span>
+                </a>
+                {% endif %}
+                {% if perms.inventario %}
+                <a href="{% url 'inventario:producto_lista' %}" class="sap-nav-link {% if 'productos' in request.path %}active{% endif %}" title="Productos">
+                    <i class="bi bi-box-seam"></i><span>Productos</span>
+                </a>
+                <a href="{% url 'inventario:servicio_lista' %}" class="sap-nav-link {% if 'servicios' in request.path %}active{% endif %}" title="Servicios">
+                    <i class="bi bi-tools"></i><span>Servicios</span>
+                </a>
+                <a href="{% url 'inventario:categoria_lista' %}" class="sap-nav-link {% if 'categorias' in request.path %}active{% endif %}" title="Categorías">
+                    <i class="bi bi-tags"></i><span>Categorías</span>
+                </a>
+                <a href="{% url 'inventario:movimiento_lista' %}" class="sap-nav-link {% if 'movimientos' in request.path %}active{% endif %}" title="Movimientos">
+                    <i class="bi bi-arrow-left-right"></i><span>Movimientos</span>
+                </a>
+                {% endif %}
+                {% if perms.produccion %}
+                <a href="{% url 'produccion:orden_lista' %}" class="sap-nav-link {% if 'produccion/ordenes' in request.path %}active{% endif %}" title="Órdenes de producción">
+                    <i class="bi bi-gear-wide-connected"></i><span>Órdenes de producción</span>
+                </a>
+                <a href="{% url 'produccion:bom_lista' %}" class="sap-nav-link {% if 'recetas' in request.path %}active{% endif %}" title="Recetas (BOM)">
+                    <i class="bi bi-clipboard-data"></i><span>Recetas (BOM)</span>
+                </a>
+                {% endif %}
+            </div>
+        </div>
         {% endif %}
 
         {% if perms.rrhh.view_empleado or perms.rrhh.view_asistencia or perms.rrhh.view_nomina or perms.rrhh.view_prestamo or perms.rrhh.marcar_propia_asistencia or perms.rrhh.ver_propio_perfil %}
-        <div class="sap-nav-section">RR.HH.</div>
-        {% if perms.rrhh.view_empleado %}
-        <a href="{% url 'rrhh:resumen' %}" class="sap-nav-link {% if request.resolver_match.url_name == 'resumen' and request.resolver_match.namespace == 'rrhh' %}active{% endif %}">
-            <i class="bi bi-person-badge"></i>Resumen
-        </a>
-        <a href="{% url 'rrhh:empleado_lista' %}" class="sap-nav-link {% if 'rrhh/empleados' in request.path %}active{% endif %}">
-            <i class="bi bi-person-vcard"></i>Empleados
-        </a>
-        {% endif %}
-        {% if perms.rrhh.marcar_propia_asistencia or perms.rrhh.ver_propio_perfil %}
-        <a href="{% url 'rrhh:mi_perfil' %}" class="sap-nav-link {% if 'mi-perfil' in request.path %}active{% endif %}">
-            <i class="bi bi-person-check"></i>Mi perfil
-        </a>
-        {% endif %}
-        {% if perms.rrhh.view_asistencia %}
-        <a href="{% url 'rrhh:asistencia_lista' %}" class="sap-nav-link {% if 'rrhh/asistencia' in request.path %}active{% endif %}">
-            <i class="bi bi-calendar-check"></i>Asistencia
-        </a>
-        {% endif %}
-        {% if perms.rrhh.view_nomina %}
-        <a href="{% url 'rrhh:nomina_lista' %}" class="sap-nav-link {% if 'rrhh/nomina' in request.path %}active{% endif %}">
-            <i class="bi bi-cash-stack"></i>Nómina
-        </a>
-        {% endif %}
-        {% if perms.rrhh.view_prestamo %}
-        <a href="{% url 'rrhh:prestamo_lista' %}" class="sap-nav-link {% if 'prestamos' in request.path %}active{% endif %}">
-            <i class="bi bi-piggy-bank"></i>Préstamos
-        </a>
-        {% endif %}
-        {% if perms.rrhh.view_departamento %}
-        <a href="{% url 'rrhh:departamento_lista' %}" class="sap-nav-link {% if 'departamentos' in request.path %}active{% endif %}">
-            <i class="bi bi-building"></i>Departamentos
-        </a>
-        {% endif %}
-        {% endif %}
-
-        {% if perms.produccion %}
-        <div class="sap-nav-section">Producción</div>
-        <a href="{% url 'produccion:orden_lista' %}" class="sap-nav-link {% if 'produccion/ordenes' in request.path %}active{% endif %}">
-            <i class="bi bi-gear-wide-connected"></i>Órdenes
-        </a>
-        <a href="{% url 'produccion:bom_lista' %}" class="sap-nav-link {% if 'recetas' in request.path %}active{% endif %}">
-            <i class="bi bi-clipboard-data"></i>Recetas (BOM)
-        </a>
-        {% endif %}
-
-        {% if perms.inventario %}
-        <div class="sap-nav-section">Inventario</div>
-        <a href="{% url 'inventario:producto_lista' %}" class="sap-nav-link {% if 'productos' in request.path %}active{% endif %}">
-            <i class="bi bi-box-seam"></i>Productos
-        </a>
-        <a href="{% url 'inventario:servicio_lista' %}" class="sap-nav-link {% if 'servicios' in request.path %}active{% endif %}">
-            <i class="bi bi-tools"></i>Servicios
-        </a>
-        <a href="{% url 'inventario:categoria_lista' %}" class="sap-nav-link {% if 'categorias' in request.path %}active{% endif %}">
-            <i class="bi bi-tags"></i>Categorías
-        </a>
-        <a href="{% url 'inventario:movimiento_lista' %}" class="sap-nav-link {% if 'movimientos' in request.path %}active{% endif %}">
-            <i class="bi bi-arrow-left-right"></i>Movimientos
-        </a>
+        <div class="sap-nav-group" data-group="rrhh">
+            <button type="button" class="sap-nav-section" data-toggle-group><span>RR.HH.</span><i class="bi bi-chevron-down sap-nav-chevron"></i></button>
+            <div class="sap-nav-links">
+                {% if perms.rrhh.view_empleado %}
+                <a href="{% url 'rrhh:resumen' %}" class="sap-nav-link {% if request.resolver_match.url_name == 'resumen' and request.resolver_match.namespace == 'rrhh' %}active{% endif %}" title="Resumen">
+                    <i class="bi bi-person-badge"></i><span>Resumen</span>
+                </a>
+                <a href="{% url 'rrhh:empleado_lista' %}" class="sap-nav-link {% if 'rrhh/empleados' in request.path %}active{% endif %}" title="Empleados">
+                    <i class="bi bi-person-vcard"></i><span>Empleados</span>
+                </a>
+                {% endif %}
+                {% if perms.rrhh.marcar_propia_asistencia or perms.rrhh.ver_propio_perfil %}
+                <a href="{% url 'rrhh:mi_perfil' %}" class="sap-nav-link {% if 'mi-perfil' in request.path %}active{% endif %}" title="Mi perfil">
+                    <i class="bi bi-person-check"></i><span>Mi perfil</span>
+                </a>
+                {% endif %}
+                {% if perms.rrhh.view_asistencia %}
+                <a href="{% url 'rrhh:asistencia_lista' %}" class="sap-nav-link {% if 'rrhh/asistencia' in request.path %}active{% endif %}" title="Asistencia">
+                    <i class="bi bi-calendar-check"></i><span>Asistencia</span>
+                </a>
+                {% endif %}
+                {% if perms.rrhh.view_nomina %}
+                <a href="{% url 'rrhh:nomina_lista' %}" class="sap-nav-link {% if 'rrhh/nomina' in request.path %}active{% endif %}" title="Nómina">
+                    <i class="bi bi-cash-stack"></i><span>Nómina</span>
+                </a>
+                {% endif %}
+                {% if perms.rrhh.view_prestamo %}
+                <a href="{% url 'rrhh:prestamo_lista' %}" class="sap-nav-link {% if 'prestamos' in request.path %}active{% endif %}" title="Préstamos">
+                    <i class="bi bi-piggy-bank"></i><span>Préstamos</span>
+                </a>
+                {% endif %}
+                {% if perms.rrhh.view_departamento %}
+                <a href="{% url 'rrhh:departamento_lista' %}" class="sap-nav-link {% if 'departamentos' in request.path %}active{% endif %}" title="Departamentos">
+                    <i class="bi bi-building"></i><span>Departamentos</span>
+                </a>
+                {% endif %}
+            </div>
+        </div>
         {% endif %}
 
         {% if user.is_staff %}
-        <div class="sap-nav-section">Administración</div>
-        <a href="{% url 'administracion:empresa_editar' %}" class="sap-nav-link {% if 'administracion/empresa' in request.path %}active{% endif %}">
-            <i class="bi bi-building-gear"></i>Datos de la empresa
-        </a>
-        <a href="{% url 'administracion:usuario_lista' %}" class="sap-nav-link {% if 'administracion/usuarios' in request.path %}active{% endif %}">
-            <i class="bi bi-people-fill"></i>Usuarios
-        </a>
-        <a href="{% url 'administracion:rol_lista' %}" class="sap-nav-link {% if 'administracion/roles' in request.path %}active{% endif %}">
-            <i class="bi bi-shield-lock"></i>Roles
-        </a>
-        <a href="{% url 'administracion:auditoria_lista' %}" class="sap-nav-link {% if 'administracion/auditoria' in request.path %}active{% endif %}">
-            <i class="bi bi-clock-history"></i>Auditoría
-        </a>
-        <a href="{% url 'admin:index' %}" class="sap-nav-link">
-            <i class="bi bi-gear"></i>Panel admin
-        </a>
+        <div class="sap-nav-group" data-group="administracion">
+            <button type="button" class="sap-nav-section" data-toggle-group><span>Administración</span><i class="bi bi-chevron-down sap-nav-chevron"></i></button>
+            <div class="sap-nav-links">
+                <a href="{% url 'administracion:empresa_editar' %}" class="sap-nav-link {% if 'administracion/empresa' in request.path %}active{% endif %}" title="Datos de la empresa">
+                    <i class="bi bi-building-gear"></i><span>Datos de la empresa</span>
+                </a>
+                <a href="{% url 'administracion:usuario_lista' %}" class="sap-nav-link {% if 'administracion/usuarios' in request.path %}active{% endif %}" title="Usuarios">
+                    <i class="bi bi-people-fill"></i><span>Usuarios</span>
+                </a>
+                <a href="{% url 'administracion:rol_lista' %}" class="sap-nav-link {% if 'administracion/roles' in request.path %}active{% endif %}" title="Roles">
+                    <i class="bi bi-shield-lock"></i><span>Roles</span>
+                </a>
+                <a href="{% url 'administracion:auditoria_lista' %}" class="sap-nav-link {% if 'administracion/auditoria' in request.path %}active{% endif %}" title="Auditoría">
+                    <i class="bi bi-clock-history"></i><span>Auditoría</span>
+                </a>
+                <a href="{% url 'admin:index' %}" class="sap-nav-link" title="Panel admin">
+                    <i class="bi bi-gear"></i><span>Panel admin</span>
+                </a>
+            </div>
+        </div>
         {% endif %}
     </nav>
     <main class="sap-content">
+        {% if breadcrumb_seccion %}
+        <nav class="sap-breadcrumb" aria-label="breadcrumb">
+            <a href="{% url 'dashboard' %}">Inicio</a>
+            <span class="sep">/</span>
+            {% if breadcrumb_pagina %}
+                <span>{{ breadcrumb_seccion }}</span>
+                <span class="sep">/</span>
+                <span class="current">{{ breadcrumb_pagina }}</span>
+            {% else %}
+                <span class="current">{{ breadcrumb_seccion }}</span>
+            {% endif %}
+        </nav>
+        {% endif %}
         {% if messages %}
             {% for message in messages %}
                 <div class="alert alert-{{ message.tags|default:'info' }} alert-dismissible fade show" role="alert">
@@ -219,6 +257,37 @@
 document.getElementById('sidebarToggle')?.addEventListener('click', function () {
     document.getElementById('sapSidenav')?.classList.toggle('sap-sidenav-open');
 });
+
+(function () {
+    var body = document.body;
+    var COLLAPSE_KEY = 'sap_sidenav_collapsed';
+    var collapseBtn = document.getElementById('sidenavCollapseToggle');
+    try {
+        if (localStorage.getItem(COLLAPSE_KEY) === '1') body.classList.add('sap-sidenav-icons');
+    } catch (e) {}
+    collapseBtn?.addEventListener('click', function () {
+        body.classList.toggle('sap-sidenav-icons');
+        try {
+            localStorage.setItem(COLLAPSE_KEY, body.classList.contains('sap-sidenav-icons') ? '1' : '0');
+        } catch (e) {}
+    });
+
+    document.querySelectorAll('[data-toggle-group]').forEach(function (btn) {
+        var group = btn.closest('.sap-nav-group');
+        if (!group) return;
+        var key = 'sap_sidenav_group_' + group.dataset.group;
+        try {
+            if (localStorage.getItem(key) === '0') group.classList.add('collapsed');
+        } catch (e) {}
+        btn.addEventListener('click', function () {
+            if (body.classList.contains('sap-sidenav-icons')) return;
+            group.classList.toggle('collapsed');
+            try {
+                localStorage.setItem(key, group.classList.contains('collapsed') ? '0' : '1');
+            } catch (e) {}
+        });
+    });
+})();
 </script>
 {% else %}
     {% block content_public %}{% endblock %}
