@@ -11,6 +11,7 @@ from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.utils import timezone
 
+from comunicaciones.models import Comunicado
 from compras.models import Compra, Proveedor
 from documentos.models import Documento
 from finanzas.models import CuentaPorCobrar, CuentaPorPagar
@@ -257,6 +258,7 @@ def dashboard(request):
         "periodo_etiqueta": PERIODOS[periodo][0],
         "chart_labels": json.dumps(etiquetas),
         "chart_values": json.dumps(valores),
+        "ultimos_comunicados": Comunicado.objects.filter(empresa=empresa)[:3],
     }
     return render(request, "core/dashboard.html", context)
 

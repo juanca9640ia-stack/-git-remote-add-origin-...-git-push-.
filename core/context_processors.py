@@ -18,6 +18,7 @@ NOMBRES_SECCION = {
     "rrhh": "RR.HH.",
     "proyectos": "Proyectos",
     "documentos": "Documentos",
+    "comunicaciones": "Comunicaciones",
     "administracion": "Administración",
 }
 

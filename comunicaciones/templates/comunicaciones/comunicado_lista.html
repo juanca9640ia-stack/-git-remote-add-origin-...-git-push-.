@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}Comunicaciones{% endblock %}
+{% block content %}
+<h2 class="mb-1">Comunicaciones</h2>
+<p class="text-muted mb-4">Cartelera de la empresa: anuncios visibles para todo el equipo.</p>
+
+{% if puede_publicar %}
+<div class="card card-kpi p-3 mb-4">
+    <form method="post">
+        {% csrf_token %}
+        <div class="row g-2">
+            <div class="col-12">{{ form.titulo }}</div>
+            <div class="col-12">{{ form.cuerpo }}</div>
+            <div class="col-auto form-check pt-2">
+                {{ form.fijado }}
+                <label class="form-check-label" for="{{ form.fijado.id_for_label }}">Fijar arriba de todo</label>
+            </div>
+        </div>
+        <button type="submit" class="btn btn-primary btn-sm mt-2"><i class="bi bi-megaphone me-1"></i>Publicar</button>
+    </form>
+</div>
+{% endif %}
+
+<div class="d-flex flex-column gap-3">
+    {% for comunicado in comunicados %}
+        <div class="card card-kpi p-3 {% if comunicado.fijado %}border-primary{% endif %}">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <h5 class="mb-1">
+                        {% if comunicado.fijado %}<i class="bi bi-pin-angle-fill text-primary me-1"></i>{% endif %}
+                        {{ comunicado.titulo }}
+                    </h5>
+                    <p class="mb-2" style="white-space:pre-line;">{{ comunicado.cuerpo }}</p>
+                    <small class="text-muted">
+                        {{ comunicado.publicado_por|default:"Sistema" }} · {{ comunicado.creado_en|date:"d/m/Y H:i" }}
+                    </small>
+                </div>
+                {% if puede_publicar or comunicado.publicado_por_id == request.user.id %}
+                <form method="post" action="{% url 'comunicaciones:comunicado_eliminar' comunicado.pk %}" onsubmit="return confirm('¿Eliminar este comunicado?');">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-sm btn-link text-danger p-0"><i class="bi bi-trash"></i></button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+    {% empty %}
+        <div class="card card-kpi p-4 text-center text-muted">Aún no hay comunicados publicados.</div>
+    {% endfor %}
+</div>
+{% endblock %}

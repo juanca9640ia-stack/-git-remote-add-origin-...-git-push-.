@@ -94,6 +94,18 @@
                 <a href="{% url 'calendario' %}" class="sap-nav-link {% if request.resolver_match.url_name == 'calendario' %}active{% endif %}" title="Calendario">
                     <i class="bi bi-calendar3"></i><span>Calendario</span>
                 </a>
+                <a href="{% url 'comunicaciones:comunicado_lista' %}" class="sap-nav-link {% if request.resolver_match.namespace == 'comunicaciones' %}active{% endif %}" title="Comunicaciones">
+                    <i class="bi bi-megaphone"></i><span>Comunicaciones</span>
+                </a>
+            </div>
+        </div>
+        {% else %}
+        <div class="sap-nav-group" data-group="inicio">
+            <button type="button" class="sap-nav-section" data-toggle-group><span>Inicio</span><i class="bi bi-chevron-down sap-nav-chevron"></i></button>
+            <div class="sap-nav-links">
+                <a href="{% url 'comunicaciones:comunicado_lista' %}" class="sap-nav-link {% if request.resolver_match.namespace == 'comunicaciones' %}active{% endif %}" title="Comunicaciones">
+                    <i class="bi bi-megaphone"></i><span>Comunicaciones</span>
+                </a>
             </div>
         </div>
         {% endif %}
