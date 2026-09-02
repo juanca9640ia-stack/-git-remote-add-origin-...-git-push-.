@@ -4,16 +4,18 @@ from decimal import Decimal
 
 from django.contrib.auth.decorators import login_required
 from django.contrib.humanize.templatetags.humanize import intcomma
+from django.db.models import Q
+from django.http import JsonResponse
 from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.utils import timezone
 
-from compras.models import Compra
+from compras.models import Compra, Proveedor
 from finanzas.models import CuentaPorCobrar, CuentaPorPagar
 from inventario.models import Producto
 from produccion.models import OrdenProduccion
 from rrhh.models import Empleado
-from ventas.models import Cotizacion, Venta
+from ventas.models import Cliente, Cotizacion, Venta
 
 
 def _money(value):
@@ -203,3 +205,116 @@ def dashboard(request):
         "chart_values": json.dumps(valores),
     }
     return render(request, "core/dashboard.html", context)
+
+
+LIMITE_RESULTADOS_POR_CATEGORIA = 5
+
+
+@login_required
+def busqueda_global(request):
+    """Búsqueda rápida (Ctrl+K / barra superior) a través de todos los módulos
+    a los que el usuario tenga acceso. Devuelve resultados agrupados por
+    categoría, en JSON, para el desplegable del shellbar."""
+    q = request.GET.get("q", "").strip()
+    empresa = request.empresa
+    resultados = []
+
+    if len(q) < 2:
+        return JsonResponse({"resultados": resultados})
+
+    if request.user.has_module_perms("ventas"):
+        clientes = Cliente.objects.filter(empresa=empresa).filter(
+            Q(nombre__icontains=q) | Q(documento__icontains=q)
+        )[:LIMITE_RESULTADOS_POR_CATEGORIA]
+        if clientes:
+            resultados.append({
+                "categoria": "Clientes", "icono": "bi-people",
+                "items": [
+                    {"titulo": c.nombre, "subtitulo": c.documento or "Sin documento",
+                     "url": reverse("ventas:cliente_detalle", args=[c.pk])}
+                    for c in clientes
+                ],
+            })
+
+        ventas = Venta.objects.filter(empresa=empresa).select_related("cliente").filter(
+            Q(numero__icontains=q) | Q(numero_factura__icontains=q)
+        )[:LIMITE_RESULTADOS_POR_CATEGORIA]
+        if ventas:
+            resultados.append({
+                "categoria": "Ventas", "icono": "bi-receipt",
+                "items": [
+                    {"titulo": v.numero, "subtitulo": str(v.cliente),
+                     "url": reverse("ventas:venta_detalle", args=[v.pk])}
+                    for v in ventas
+                ],
+            })
+
+        cotizaciones = Cotizacion.objects.filter(empresa=empresa, numero__icontains=q).select_related(
+            "cliente"
+        )[:LIMITE_RESULTADOS_POR_CATEGORIA]
+        if cotizaciones:
+            resultados.append({
+                "categoria": "Cotizaciones", "icono": "bi-file-earmark-text",
+                "items": [
+                    {"titulo": c.numero, "subtitulo": str(c.cliente),
+                     "url": reverse("ventas:cotizacion_detalle", args=[c.pk])}
+                    for c in cotizaciones
+                ],
+            })
+
+    if request.user.has_module_perms("inventario"):
+        productos = Producto.objects.filter(empresa=empresa).filter(
+            Q(sku__icontains=q) | Q(nombre__icontains=q)
+        )[:LIMITE_RESULTADOS_POR_CATEGORIA]
+        if productos:
+            resultados.append({
+                "categoria": "Productos y servicios", "icono": "bi-box-seam",
+                "items": [
+                    {"titulo": p.nombre, "subtitulo": p.sku,
+                     "url": reverse("inventario:producto_detalle", args=[p.pk])}
+                    for p in productos
+                ],
+            })
+
+    if request.user.has_module_perms("compras"):
+        proveedores = Proveedor.objects.filter(empresa=empresa).filter(
+            Q(nombre__icontains=q) | Q(nit__icontains=q)
+        )[:LIMITE_RESULTADOS_POR_CATEGORIA]
+        if proveedores:
+            resultados.append({
+                "categoria": "Proveedores", "icono": "bi-truck",
+                "items": [
+                    {"titulo": p.nombre, "subtitulo": p.nit or "Sin NIT",
+                     "url": reverse("compras:proveedor_editar", args=[p.pk])}
+                    for p in proveedores
+                ],
+            })
+
+        compras = Compra.objects.filter(empresa=empresa, numero__icontains=q).select_related(
+            "proveedor"
+        )[:LIMITE_RESULTADOS_POR_CATEGORIA]
+        if compras:
+            resultados.append({
+                "categoria": "Compras", "icono": "bi-cart-check",
+                "items": [
+                    {"titulo": c.numero, "subtitulo": str(c.proveedor),
+                     "url": reverse("compras:compra_detalle", args=[c.pk])}
+                    for c in compras
+                ],
+            })
+
+    if request.user.has_module_perms("rrhh"):
+        empleados = Empleado.objects.filter(empresa=empresa).filter(
+            Q(nombre_completo__icontains=q) | Q(documento__icontains=q)
+        )[:LIMITE_RESULTADOS_POR_CATEGORIA]
+        if empleados:
+            resultados.append({
+                "categoria": "Empleados", "icono": "bi-person-badge",
+                "items": [
+                    {"titulo": e.nombre_completo, "subtitulo": e.cargo,
+                     "url": reverse("rrhh:empleado_detalle", args=[e.pk])}
+                    for e in empleados
+                ],
+            })
+
+    return JsonResponse({"resultados": resultados})

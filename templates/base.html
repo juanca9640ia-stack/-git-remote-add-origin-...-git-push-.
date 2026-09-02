@@ -28,9 +28,11 @@
             <span>{{ empresa.nombre|default:"ERP Gestión" }}</span>
         </a>
     </div>
-    <div class="sap-shellbar-search d-none d-md-flex">
+    <div class="sap-shellbar-search d-none d-md-flex" id="busquedaGlobal">
         <i class="bi bi-search"></i>
-        <input type="text" placeholder="Buscar..." disabled>
+        <input type="text" id="busquedaGlobalInput" placeholder="Buscar clientes, ventas, productos…" autocomplete="off">
+        <kbd class="sap-search-kbd">Ctrl K</kbd>
+        <div class="sap-search-resultados" id="busquedaGlobalResultados" hidden></div>
     </div>
     <div class="sap-shellbar-right">
         <button type="button" class="sap-shellbar-icon-btn" aria-label="Notificaciones">
@@ -286,6 +288,107 @@ document.getElementById('sidebarToggle')?.addEventListener('click', function () 
                 localStorage.setItem(key, group.classList.contains('collapsed') ? '0' : '1');
             } catch (e) {}
         });
+    });
+})();
+
+(function () {
+    var wrap = document.getElementById('busquedaGlobal');
+    var input = document.getElementById('busquedaGlobalInput');
+    var panel = document.getElementById('busquedaGlobalResultados');
+    if (!wrap || !input || !panel) return;
+
+    var debounceTimer = null;
+    var itemsPlanos = [];
+    var indiceActivo = -1;
+    var ultimaPeticion = 0;
+
+    function cerrar() {
+        panel.hidden = true;
+        panel.innerHTML = '';
+        itemsPlanos = [];
+        indiceActivo = -1;
+    }
+
+    function marcarActivo() {
+        panel.querySelectorAll('.sap-search-item').forEach(function (el, i) {
+            el.classList.toggle('is-activo', i === indiceActivo);
+        });
+        var activo = panel.querySelector('.sap-search-item.is-activo');
+        if (activo) activo.scrollIntoView({ block: 'nearest' });
+    }
+
+    function render(resultados) {
+        panel.innerHTML = '';
+        itemsPlanos = [];
+        indiceActivo = -1;
+        if (!resultados.length) {
+            panel.innerHTML = '<div class="sap-search-vacio">Sin resultados</div>';
+            panel.hidden = false;
+            return;
+        }
+        resultados.forEach(function (grupo) {
+            var seccion = document.createElement('div');
+            seccion.className = 'sap-search-grupo';
+            seccion.innerHTML = '<div class="sap-search-grupo-titulo"><i class="bi ' + grupo.icono + '"></i>' + grupo.categoria + '</div>';
+            grupo.items.forEach(function (item) {
+                var a = document.createElement('a');
+                a.href = item.url;
+                a.className = 'sap-search-item';
+                a.innerHTML = '<span class="sap-search-item-titulo">' + item.titulo + '</span>' +
+                    '<span class="sap-search-item-subtitulo">' + item.subtitulo + '</span>';
+                seccion.appendChild(a);
+                itemsPlanos.push(a);
+            });
+            panel.appendChild(seccion);
+        });
+        panel.hidden = false;
+    }
+
+    input.addEventListener('input', function () {
+        var q = input.value.trim();
+        clearTimeout(debounceTimer);
+        if (q.length < 2) { cerrar(); return; }
+        var idPeticion = ++ultimaPeticion;
+        debounceTimer = setTimeout(function () {
+            fetch('{% url "busqueda_global" %}?q=' + encodeURIComponent(q))
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    if (idPeticion !== ultimaPeticion) return; // respuesta obsoleta, ya hay una búsqueda más nueva
+                    render(data.resultados || []);
+                })
+                .catch(function () { if (idPeticion === ultimaPeticion) cerrar(); });
+        }, 220);
+    });
+
+    input.addEventListener('keydown', function (e) {
+        if (panel.hidden || !itemsPlanos.length) return;
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            indiceActivo = Math.min(indiceActivo + 1, itemsPlanos.length - 1);
+            marcarActivo();
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            indiceActivo = Math.max(indiceActivo - 1, 0);
+            marcarActivo();
+        } else if (e.key === 'Enter' && indiceActivo >= 0) {
+            e.preventDefault();
+            window.location = itemsPlanos[indiceActivo].getAttribute('href');
+        } else if (e.key === 'Escape') {
+            cerrar();
+            input.blur();
+        }
+    });
+
+    document.addEventListener('click', function (e) {
+        if (!wrap.contains(e.target)) cerrar();
+    });
+
+    document.addEventListener('keydown', function (e) {
+        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+            e.preventDefault();
+            input.focus();
+            input.select();
+        }
     });
 })();
 </script>

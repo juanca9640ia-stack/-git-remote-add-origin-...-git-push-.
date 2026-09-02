@@ -67,12 +67,38 @@ h1, h2, h3, h4, h5, h6 {
     flex: 1; max-width: 420px; margin: 0 1.5rem;
     align-items: center; background: rgba(255,255,255,.14);
     border-radius: 2px; padding: .35rem .6rem; color: rgba(255,255,255,.75);
+    position: relative;
 }
 .sap-shellbar-search input {
     background: transparent; border: none; color: #fff; outline: none;
     flex: 1; margin-left: .5rem; font-size: .8125rem;
 }
 .sap-shellbar-search input::placeholder { color: rgba(255,255,255,.65); }
+.sap-search-kbd {
+    font-size: .65rem; color: rgba(255,255,255,.55);
+    border: 1px solid rgba(255,255,255,.3); border-radius: 3px;
+    padding: .05rem .35rem; font-family: inherit;
+}
+.sap-search-resultados {
+    position: absolute; top: calc(100% + 6px); left: 0; right: 0;
+    background: #fff; color: var(--sap-text); border-radius: 6px;
+    box-shadow: 0 8px 24px rgba(0,0,0,.18); border: 1px solid var(--sap-border);
+    max-height: 60vh; overflow-y: auto; z-index: 1050; padding: .4rem 0;
+}
+.sap-search-grupo-titulo {
+    font-size: .68rem; text-transform: uppercase; letter-spacing: .04em;
+    color: var(--sap-text-muted); font-weight: 700; padding: .5rem .9rem .25rem;
+    display: flex; align-items: center; gap: .4rem;
+}
+.sap-search-item {
+    display: flex; justify-content: space-between; align-items: center;
+    gap: .75rem; padding: .45rem .9rem; text-decoration: none; color: var(--sap-text);
+    font-size: .82rem;
+}
+.sap-search-item-titulo { font-weight: 600; }
+.sap-search-item-subtitulo { color: var(--sap-text-muted); font-size: .76rem; white-space: nowrap; }
+.sap-search-item:hover, .sap-search-item.is-activo { background: #f0f6fd; }
+.sap-search-vacio { padding: 1rem; text-align: center; color: var(--sap-text-muted); font-size: .82rem; }
 .sap-shellbar-right { display: flex; align-items: center; gap: .15rem; }
 .sap-shellbar-icon-btn {
     background: none; border: none; color: #fff; font-size: 1.05rem;
