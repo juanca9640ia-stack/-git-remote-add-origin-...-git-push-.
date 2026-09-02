@@ -105,6 +105,24 @@ h1, h2, h3, h4, h5, h6 {
     padding: .4rem .55rem; cursor: pointer; border-radius: 2px; line-height: 1;
 }
 .sap-shellbar-icon-btn:hover { background: rgba(255,255,255,.14); }
+.sap-notif-wrap { position: relative; }
+.sap-notif-badge {
+    position: absolute; top: 2px; right: 2px; min-width: 15px; height: 15px;
+    border-radius: 8px; background: #b00020; color: #fff; font-size: .62rem;
+    font-weight: 700; display: flex; align-items: center; justify-content: center;
+    padding: 0 3px; line-height: 1;
+}
+.sap-notif-panel { left: auto; right: 0; width: 340px; max-width: 90vw; }
+.sap-notif-item {
+    display: flex; align-items: flex-start; gap: .6rem; padding: .6rem .9rem;
+    text-decoration: none; color: var(--sap-text); font-size: .82rem; border-left: 3px solid transparent;
+}
+.sap-notif-item:hover { background: #f0f6fd; }
+.sap-notif-item i { margin-top: .1rem; }
+.sap-notif-danger { border-left-color: #b00020; }
+.sap-notif-danger i { color: #b00020; }
+.sap-notif-warning { border-left-color: #e9730c; }
+.sap-notif-warning i { color: #e9730c; }
 .sap-shellbar-user {
     display: flex; align-items: center; gap: .5rem; background: none; border: none;
     color: #fff; padding: .3rem .6rem; border-radius: 2px; cursor: pointer; font-size: .8125rem;

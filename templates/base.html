@@ -35,9 +35,13 @@
         <div class="sap-search-resultados" id="busquedaGlobalResultados" hidden></div>
     </div>
     <div class="sap-shellbar-right">
-        <button type="button" class="sap-shellbar-icon-btn" aria-label="Notificaciones">
-            <i class="bi bi-bell"></i>
-        </button>
+        <div class="sap-notif-wrap" id="notifWrap">
+            <button type="button" class="sap-shellbar-icon-btn" id="notifBtn" aria-label="Notificaciones">
+                <i class="bi bi-bell"></i>
+                <span class="sap-notif-badge" id="notifBadge" hidden>0</span>
+            </button>
+            <div class="sap-search-resultados sap-notif-panel" id="notifPanel" hidden></div>
+        </div>
         <div class="dropdown">
             <button type="button" class="sap-shellbar-user" data-bs-toggle="dropdown" aria-expanded="false">
                 <span class="sap-avatar">{{ user.get_username|slice:":1"|upper }}</span>
@@ -401,6 +405,55 @@ document.getElementById('sidebarToggle')?.addEventListener('click', function () 
             input.select();
         }
     });
+})();
+
+(function () {
+    var wrap = document.getElementById('notifWrap');
+    var btn = document.getElementById('notifBtn');
+    var badge = document.getElementById('notifBadge');
+    var panel = document.getElementById('notifPanel');
+    if (!wrap || !btn || !badge || !panel) return;
+
+    function render(alertas) {
+        if (!alertas.length) {
+            badge.hidden = true;
+            panel.innerHTML = '<div class="sap-search-vacio">Sin novedades por ahora</div>';
+            return;
+        }
+        badge.hidden = false;
+        badge.textContent = alertas.length > 9 ? '9+' : String(alertas.length);
+        panel.innerHTML = '';
+        var seccion = document.createElement('div');
+        seccion.className = 'sap-search-grupo';
+        alertas.forEach(function (a) {
+            var link = document.createElement('a');
+            link.href = a.url;
+            link.className = 'sap-notif-item sap-notif-' + a.severidad;
+            link.innerHTML = '<i class="bi ' + a.icono + '"></i><span>' + a.mensaje + '</span>';
+            seccion.appendChild(link);
+        });
+        panel.appendChild(seccion);
+    }
+
+    function cargar() {
+        fetch('{% url "notificaciones" %}')
+            .then(function (r) { return r.json(); })
+            .then(function (data) { render(data.alertas || []); })
+            .catch(function () {});
+    }
+
+    btn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        var abrir = panel.hidden;
+        panel.hidden = !abrir;
+        if (abrir) cargar();
+    });
+
+    document.addEventListener('click', function (e) {
+        if (!wrap.contains(e.target)) panel.hidden = true;
+    });
+
+    cargar(); // para el número en la campana al cargar la página
 })();
 </script>
 {% else %}

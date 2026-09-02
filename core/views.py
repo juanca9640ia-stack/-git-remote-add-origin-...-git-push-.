@@ -14,7 +14,7 @@ from compras.models import Compra, Proveedor
 from finanzas.models import CuentaPorCobrar, CuentaPorPagar
 from inventario.models import Producto
 from produccion.models import OrdenProduccion
-from proyectos.models import Proyecto
+from proyectos.models import HitoProyecto, Proyecto
 from rrhh.models import Empleado
 from ventas.models import Cliente, Cotizacion, Venta
 
@@ -47,6 +47,73 @@ def _rango_periodo(periodo, hoy):
         return hoy.replace(month=1, day=1), True
     # "mes" (por defecto)
     return hoy.replace(day=1), False
+
+
+def _construir_alertas(request):
+    """Todo lo que requiere atención del usuario, en un solo lugar: la campana
+    de notificaciones del shellbar y el centro de alertas del dashboard
+    comparten esta misma lista. Cada categoría se omite si el usuario no
+    tiene acceso al módulo correspondiente."""
+    empresa = request.empresa
+    hoy = timezone.localdate()
+    alertas = []
+
+    if request.user.has_module_perms("finanzas"):
+        cxc_vencidas = CuentaPorCobrar.objects.filter(
+            empresa=empresa,
+            fecha_vencimiento__lt=hoy, estado__in=[CuentaPorCobrar.PENDIENTE, CuentaPorCobrar.PARCIAL],
+        )
+        cxc_vencidas_count = cxc_vencidas.count()
+        if cxc_vencidas_count:
+            cxc_vencidas_total = sum((c.saldo_pendiente for c in cxc_vencidas), Decimal("0"))
+            alertas.append({
+                "severidad": "danger", "icono": "bi-exclamation-triangle-fill",
+                "mensaje": f"{cxc_vencidas_count} factura(s) por cobrar vencida(s) por {_money(cxc_vencidas_total)}.",
+                "url": reverse("finanzas:cxc_lista") + "?vencidas=1", "accion": "Ver vencidas",
+            })
+
+    if request.user.has_module_perms("inventario"):
+        productos_stock_bajo = [p for p in Producto.objects.filter(activo=True, empresa=empresa) if p.stock_bajo]
+        if productos_stock_bajo:
+            alertas.append({
+                "severidad": "warning", "icono": "bi-box-seam",
+                "mensaje": f"{len(productos_stock_bajo)} producto(s) por debajo del stock mínimo.",
+                "url": reverse("inventario:producto_lista"), "accion": "Ver inventario",
+            })
+
+    if request.user.has_module_perms("ventas"):
+        cotizaciones_vencidas_count = Cotizacion.objects.filter(
+            empresa=empresa, estado=Cotizacion.ENVIADA, fecha_validez__lt=hoy,
+        ).count()
+        if cotizaciones_vencidas_count:
+            alertas.append({
+                "severidad": "warning", "icono": "bi-file-earmark-text",
+                "mensaje": f"{cotizaciones_vencidas_count} cotización(es) enviada(s) venció su vigencia sin respuesta.",
+                "url": reverse("ventas:cotizacion_lista"), "accion": "Ver cotizaciones",
+            })
+
+    if request.user.has_module_perms("proyectos"):
+        hitos_vencidos_count = HitoProyecto.objects.filter(
+            empresa=empresa, completado=False, fecha_objetivo__lt=hoy, proyecto__estado__in=Proyecto.ESTADOS_ACTIVOS,
+        ).count()
+        if hitos_vencidos_count:
+            alertas.append({
+                "severidad": "warning", "icono": "bi-buildings",
+                "mensaje": f"{hitos_vencidos_count} hito(s) de obra vencido(s) sin completar.",
+                "url": reverse("proyectos:proyecto_lista"), "accion": "Ver proyectos",
+            })
+        proyectos_sobre_presupuesto = [
+            p for p in Proyecto.objects.filter(empresa=empresa, estado__in=Proyecto.ESTADOS_ACTIVOS)
+            if p.sobre_presupuesto
+        ]
+        if proyectos_sobre_presupuesto:
+            alertas.append({
+                "severidad": "danger", "icono": "bi-graph-up-arrow",
+                "mensaje": f"{len(proyectos_sobre_presupuesto)} obra(s) sobrepasaron su presupuesto.",
+                "url": reverse("proyectos:proyecto_lista"), "accion": "Ver proyectos",
+            })
+
+    return alertas
 
 
 @login_required
@@ -115,32 +182,9 @@ def dashboard(request):
     cxc_vencidas_count = cxc_vencidas.count()
     cxc_vencidas_total = sum((c.saldo_pendiente for c in cxc_vencidas), Decimal("0"))
 
-    cotizaciones_vencidas = Cotizacion.objects.filter(
-        empresa=empresa, estado=Cotizacion.ENVIADA, fecha_validez__lt=hoy,
-    )
-    cotizaciones_vencidas_count = cotizaciones_vencidas.count()
-
     # Centro de alertas unificado: todo lo que requiere atención, en un solo lugar,
-    # ordenado por severidad.
-    alertas = []
-    if cxc_vencidas_count:
-        alertas.append({
-            "severidad": "danger", "icono": "bi-exclamation-triangle-fill",
-            "mensaje": f"{cxc_vencidas_count} factura(s) por cobrar vencida(s) por {_money(cxc_vencidas_total)}.",
-            "url": reverse("finanzas:cxc_lista") + "?vencidas=1", "accion": "Ver vencidas",
-        })
-    if productos_stock_bajo:
-        alertas.append({
-            "severidad": "warning", "icono": "bi-box-seam",
-            "mensaje": f"{len(productos_stock_bajo)} producto(s) por debajo del stock mínimo.",
-            "url": reverse("inventario:producto_lista"), "accion": "Ver inventario",
-        })
-    if cotizaciones_vencidas_count:
-        alertas.append({
-            "severidad": "warning", "icono": "bi-file-earmark-text",
-            "mensaje": f"{cotizaciones_vencidas_count} cotización(es) enviada(s) venció su vigencia sin respuesta.",
-            "url": reverse("ventas:cotizacion_lista"), "accion": "Ver cotizaciones",
-        })
+    # ordenado por severidad. Se comparte con la campana de notificaciones del shellbar.
+    alertas = _construir_alertas(request)
 
     ordenes_planificadas = OrdenProduccion.objects.filter(
         estado=OrdenProduccion.PLANIFICADA, empresa=empresa
@@ -333,3 +377,10 @@ def busqueda_global(request):
             })
 
     return JsonResponse({"resultados": resultados})
+
+
+@login_required
+def notificaciones(request):
+    """Feed de la campana del shellbar: las mismas alertas del dashboard,
+    disponibles desde cualquier pantalla."""
+    return JsonResponse({"alertas": _construir_alertas(request)})
