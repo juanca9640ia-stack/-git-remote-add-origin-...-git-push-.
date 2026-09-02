@@ -77,6 +77,7 @@ def cliente_detalle(request, pk):
         "saldo_pendiente": saldo_pendiente,
         "cxc_vencidas": cxc_vencidas,
         "cuentas_cobro": cuentas_cobro[:10],
+        "documentos": cliente.documentos.all()[:10],
     }
     return render(request, "ventas/cliente_detalle.html", context)
 

@@ -11,6 +11,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from compras.models import Compra, Proveedor
+from documentos.models import Documento
 from finanzas.models import CuentaPorCobrar, CuentaPorPagar
 from inventario.models import Producto
 from produccion.models import OrdenProduccion
@@ -373,6 +374,17 @@ def busqueda_global(request):
                     {"titulo": p.nombre, "subtitulo": p.numero,
                      "url": reverse("proyectos:proyecto_detalle", args=[p.pk])}
                     for p in proyectos
+                ],
+            })
+
+    if request.user.has_module_perms("documentos"):
+        documentos = Documento.objects.filter(empresa=empresa, titulo__icontains=q)[:LIMITE_RESULTADOS_POR_CATEGORIA]
+        if documentos:
+            resultados.append({
+                "categoria": "Documentos", "icono": "bi-folder2-open",
+                "items": [
+                    {"titulo": d.titulo, "subtitulo": d.get_categoria_display(), "url": d.archivo.url}
+                    for d in documentos
                 ],
             })
 

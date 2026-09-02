@@ -43,6 +43,7 @@ def proyecto_detalle(request, pk):
         "hitos": proyecto.hitos.all(),
         "gastos": proyecto.gastos.select_related("registrado_por")[:15],
         "asignaciones": proyecto.asignaciones.select_related("empleado").filter(activo=True),
+        "documentos": proyecto.documentos.all()[:10],
         "hito_form": HitoForm(),
         "gasto_form": GastoForm(),
         "asignacion_form": AsignacionForm(empresa=request.empresa, proyecto=proyecto),

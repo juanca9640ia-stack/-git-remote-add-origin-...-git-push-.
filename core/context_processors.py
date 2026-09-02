@@ -17,6 +17,7 @@ NOMBRES_SECCION = {
     "produccion": "Producción",
     "rrhh": "RR.HH.",
     "proyectos": "Proyectos",
+    "documentos": "Documentos",
     "administracion": "Administración",
 }
 
@@ -30,6 +31,7 @@ NOMBRES_PAGINA = {
     "empresa_editar": "Datos de la empresa",
     "auditoria_lista": "Auditoría",
     "servicio_lista": "Servicios",
+    "documento_subir": "Subir documento",
 }
 
 

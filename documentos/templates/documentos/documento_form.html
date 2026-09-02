@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Subir documento{% endblock %}
+{% block content %}
+<h2 class="mb-4">Subir documento</h2>
+<div class="card card-kpi p-4" style="max-width:640px;">
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        <div class="row g-3">
+            <div class="col-12">
+                <label class="form-label">Título</label>
+                {{ form.titulo }}
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Categoría</label>
+                {{ form.categoria }}
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Archivo</label>
+                {{ form.archivo }}
+                {% if form.archivo.help_text %}<div class="form-text">{{ form.archivo.help_text }}</div>{% endif %}
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Proyecto (opcional)</label>
+                {{ form.proyecto }}
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Cliente (opcional)</label>
+                {{ form.cliente }}
+            </div>
+            <div class="col-12">
+                <label class="form-label">Descripción</label>
+                {{ form.descripcion }}
+            </div>
+        </div>
+        {% if form.errors %}
+            <div class="alert alert-danger mt-3 mb-0">
+                {% for field in form %}{% for error in field.errors %}<div>{{ field.label }}: {{ error }}</div>{% endfor %}{% endfor %}
+                {% for error in form.non_field_errors %}<div>{{ error }}</div>{% endfor %}
+            </div>
+        {% endif %}
+        <div class="mt-4">
+            <button type="submit" class="btn btn-primary">Subir</button>
+            <a href="{% url 'documentos:documento_lista' %}" class="btn btn-outline-secondary">Cancelar</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

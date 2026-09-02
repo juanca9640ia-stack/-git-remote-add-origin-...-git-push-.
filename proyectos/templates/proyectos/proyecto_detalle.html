@@ -181,6 +181,28 @@
                 </table>
             </div>
         </div>
+
+        {% if perms.documentos %}
+        <div class="card card-kpi mt-3">
+            <div class="card-header bg-white fw-bold d-flex justify-content-between align-items-center">
+                Documentos
+                <a href="{% url 'documentos:documento_subir' %}?proyecto={{ proyecto.pk }}" class="btn btn-sm btn-outline-primary">+ Subir</a>
+            </div>
+            <ul class="list-group list-group-flush">
+                {% for doc in documentos %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <a href="{{ doc.archivo.url }}" target="_blank" rel="noopener" class="text-decoration-none">
+                            <i class="bi bi-file-earmark-text me-1"></i>{{ doc.titulo }}
+                            <span class="badge bg-light text-dark border ms-1">{{ doc.extension }}</span>
+                        </a>
+                        <small class="text-muted">{{ doc.tamano_legible }}</small>
+                    </li>
+                {% empty %}
+                    <li class="list-group-item text-center text-muted py-4">Sin documentos adjuntos</li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
     </div>
 </div>
 {% endblock %}
