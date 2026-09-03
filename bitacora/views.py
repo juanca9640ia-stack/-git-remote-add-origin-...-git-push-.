@@ -43,14 +43,18 @@ def sede_form(request, pk=None):
             obj.empresa = request.empresa
             obj.save()
             messages.success(request, f"Sede '{obj.nombre}' guardada correctamente.")
-            # El alta rápida desde la lista de sedes, o desde la ficha del cliente,
-            # se queda en la misma hoja para poder seguir agregando sedes seguidas
-            # en vez de saltar al detalle de la sede recién creada.
+            # El alta rápida desde la lista de sedes, desde la ficha del cliente, o
+            # desde la hoja de otra sede del mismo cliente, se queda en esa misma
+            # hoja para poder seguir agregando sedes seguidas en vez de saltar al
+            # detalle de la sede recién creada.
             origen = request.POST.get("origen")
             if not sede and origen == "lista":
                 return redirect("bitacora:sede_lista")
             if not sede and origen == "cliente":
                 return redirect("ventas:cliente_detalle", pk=obj.cliente_id)
+            if not sede and origen == "sede":
+                volver_pk = request.POST.get("volver") or obj.pk
+                return redirect("bitacora:sede_detalle", pk=volver_pk)
             return redirect("bitacora:sede_detalle", pk=obj.pk)
     else:
         initial = {}
@@ -85,8 +89,10 @@ def sede_detalle(request, pk):
     pendientes = [i for i in items if not i.facturado]
     subtotal_pendiente = sum((i.subtotal for i in pendientes), Decimal("0"))
 
+    otras_sedes = Sede.objects.filter(cliente=sede.cliente, empresa=request.empresa).exclude(pk=sede.pk)
+
     return render(request, "bitacora/sede_detalle.html", {
-        "sede": sede, "items": items, "subtotal": subtotal,
+        "sede": sede, "items": items, "subtotal": subtotal, "otras_sedes": otras_sedes,
         "pendientes_count": len(pendientes), "subtotal_pendiente": subtotal_pendiente,
         "desde": desde, "hasta": hasta, "ver_todo": desde is None,
         "item_form": ItemBitacoraForm(initial={"fecha": timezone.localdate()}),

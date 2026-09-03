@@ -82,6 +82,21 @@ class BitacoraVistasTests(TestCase):
             self.assertRedirects(resp, "/bitacora/")
         self.assertEqual(Sede.objects.filter(cliente=self.cliente).count(), 4)  # + Bombona del setUp
 
+    def test_sede_detalle_muestra_las_otras_sedes_del_mismo_cliente(self):
+        otra = Sede.objects.create(cliente=self.cliente, nombre="Violetas")
+        resp = self.client.get(f"/bitacora/{self.sede.pk}/")
+        self.assertIn(otra, list(resp.context["otras_sedes"]))
+        self.assertContains(resp, "Violetas")
+        self.assertContains(resp, "Otras sedes de")
+
+    def test_agregar_sede_desde_la_hoja_de_otra_sede_se_queda_en_la_hoja_de_origen(self):
+        resp = self.client.post("/bitacora/nueva/", {
+            "cliente": self.cliente.pk, "nombre": "San Rafael", "direccion": "",
+            "activa": "on", "origen": "sede", "volver": self.sede.pk,
+        })
+        self.assertRedirects(resp, f"/bitacora/{self.sede.pk}/")
+        self.assertTrue(Sede.objects.filter(nombre="San Rafael", cliente=self.cliente).exists())
+
     def test_agregar_item_a_la_bitacora_de_una_sede(self):
         resp = self.client.post(f"/bitacora/{self.sede.pk}/items/nuevo/", {
             "fecha": timezone.localdate().isoformat(), "descripcion": "Cambio de tomacorriente",
