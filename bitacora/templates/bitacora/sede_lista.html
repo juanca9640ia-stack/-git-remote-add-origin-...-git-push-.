@@ -1,11 +1,32 @@
 {% extends "base.html" %}
 {% block title %}Bitácora — Sedes{% endblock %}
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-3">
-    <h2 class="mb-0">Bitácora por sede</h2>
-    <a href="{% url 'bitacora:sede_crear' %}" class="btn btn-primary"><i class="bi bi-plus-lg me-1"></i>Nueva sede</a>
-</div>
+<h2 class="mb-1">Bitácora por sede</h2>
 <p class="text-muted">Registra el trabajo diario que se presenta en cada sede del cliente para luego generar la factura o cotización sin volver a escribir nada.</p>
+
+<div class="card card-kpi p-3 mb-3">
+    <h6 class="mb-3">Agregar sede</h6>
+    <form method="post" action="{% url 'bitacora:sede_crear' %}" class="row g-2 align-items-end">
+        {% csrf_token %}
+        <input type="hidden" name="origen" value="lista">
+        <input type="hidden" name="activa" value="on">
+        <div class="col-md-3">
+            <label class="form-label small text-muted mb-0">Cliente</label>
+            {{ nueva_sede_form.cliente }}
+        </div>
+        <div class="col-md-3">
+            <label class="form-label small text-muted mb-0">Nombre de la sede</label>
+            {{ nueva_sede_form.nombre }}
+        </div>
+        <div class="col-md-4">
+            <label class="form-label small text-muted mb-0">Dirección (opcional)</label>
+            {{ nueva_sede_form.direccion }}
+        </div>
+        <div class="col-md-2">
+            <button type="submit" class="btn btn-primary w-100"><i class="bi bi-plus-lg me-1"></i>Agregar sede</button>
+        </div>
+    </form>
+</div>
 
 <form class="row g-2 mb-3" method="get">
     <div class="col-auto">

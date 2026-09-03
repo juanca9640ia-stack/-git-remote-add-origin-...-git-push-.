@@ -27,7 +27,10 @@ def sede_lista(request):
     query = request.GET.get("q", "")
     if query:
         sedes = sedes.filter(nombre__icontains=query)
-    return render(request, "bitacora/sede_lista.html", {"sedes": sedes, "query": query, "cliente_id": cliente_id})
+    return render(request, "bitacora/sede_lista.html", {
+        "sedes": sedes, "query": query, "cliente_id": cliente_id,
+        "nueva_sede_form": SedeForm(empresa=request.empresa),
+    })
 
 
 @login_required
@@ -40,6 +43,10 @@ def sede_form(request, pk=None):
             obj.empresa = request.empresa
             obj.save()
             messages.success(request, f"Sede '{obj.nombre}' guardada correctamente.")
+            # El alta rápida desde la lista de sedes se queda en la misma hoja para
+            # poder seguir agregando sedes una tras otra, en vez de saltar al detalle.
+            if not sede and request.POST.get("origen") == "lista":
+                return redirect("bitacora:sede_lista")
             return redirect("bitacora:sede_detalle", pk=obj.pk)
     else:
         initial = {}

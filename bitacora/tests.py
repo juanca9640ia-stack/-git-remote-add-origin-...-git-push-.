@@ -59,6 +59,29 @@ class BitacoraVistasTests(TestCase):
         self.assertEqual(resp.status_code, 302)
         self.assertTrue(Sede.objects.filter(nombre="San Rafael", cliente=self.cliente).exists())
 
+    def test_sede_lista_incluye_el_formulario_rapido_de_alta(self):
+        resp = self.client.get("/bitacora/")
+        self.assertContains(resp, "Agregar sede")
+        self.assertContains(resp, 'action="/bitacora/nueva/"')
+
+    def test_alta_rapida_de_sede_desde_la_lista_se_queda_en_la_misma_hoja(self):
+        resp = self.client.post("/bitacora/nueva/", {
+            "cliente": self.cliente.pk, "nombre": "Violetas", "direccion": "",
+            "activa": "on", "origen": "lista",
+        })
+        self.assertRedirects(resp, "/bitacora/")
+        nueva = Sede.objects.get(nombre="Violetas", cliente=self.cliente)
+        self.assertTrue(nueva.activa)
+
+    def test_alta_rapida_permite_agregar_varias_sedes_seguidas(self):
+        for nombre in ["San Rafael", "Bombona 2", "Portal Norte"]:
+            resp = self.client.post("/bitacora/nueva/", {
+                "cliente": self.cliente.pk, "nombre": nombre, "direccion": "",
+                "activa": "on", "origen": "lista",
+            })
+            self.assertRedirects(resp, "/bitacora/")
+        self.assertEqual(Sede.objects.filter(cliente=self.cliente).count(), 4)  # + Bombona del setUp
+
     def test_agregar_item_a_la_bitacora_de_una_sede(self):
         resp = self.client.post(f"/bitacora/{self.sede.pk}/items/nuevo/", {
             "fecha": timezone.localdate().isoformat(), "descripcion": "Cambio de tomacorriente",
