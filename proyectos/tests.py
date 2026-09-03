@@ -172,6 +172,43 @@ class ProyectoVistasTests(TestCase):
         self.assertEqual(gasto.valor, Decimal("250000"))
         self.assertEqual(gasto.registrado_por, self.usuario)
 
+    def test_asignar_empleado_con_salario_registra_mano_de_obra_como_gasto(self):
+        proyecto = Proyecto.objects.create(empresa=self.empresa, nombre="Obra propia")
+        empleado = Empleado.objects.create(
+            empresa=self.empresa, nombre_completo="Juan Obrero", documento="123", cargo="Oficial",
+            tipo_pago=Empleado.PAGO_SALARIO, salario_base=Decimal("2000000"),
+        )
+        self.client.post(reverse("proyectos:asignacion_crear", args=[proyecto.pk]), {
+            "empleado": empleado.pk, "rol_en_obra": "Maestro de obra",
+        })
+        gasto = proyecto.gastos.get()
+        self.assertEqual(gasto.categoria, GastoProyecto.MANO_OBRA)
+        self.assertEqual(gasto.valor, Decimal("2000000"))
+        self.assertIn("Juan Obrero", gasto.concepto)
+        self.assertEqual(proyecto.gastado, Decimal("2000000"))
+
+    def test_asignar_empleado_por_dia_registra_el_valor_dia_como_gasto(self):
+        proyecto = Proyecto.objects.create(empresa=self.empresa, nombre="Obra propia")
+        empleado = Empleado.objects.create(
+            empresa=self.empresa, nombre_completo="Pedro Ayudante", documento="456", cargo="Ayudante",
+            tipo_pago=Empleado.PAGO_DIA, valor_dia=Decimal("80000"),
+        )
+        self.client.post(reverse("proyectos:asignacion_crear", args=[proyecto.pk]), {
+            "empleado": empleado.pk, "rol_en_obra": "",
+        })
+        gasto = proyecto.gastos.get()
+        self.assertEqual(gasto.valor, Decimal("80000"))
+
+    def test_asignar_empleado_sin_valor_de_pago_configurado_no_registra_gasto(self):
+        proyecto = Proyecto.objects.create(empresa=self.empresa, nombre="Obra propia")
+        empleado = Empleado.objects.create(
+            empresa=self.empresa, nombre_completo="Sin Salario", documento="789", cargo="Oficial",
+        )
+        self.client.post(reverse("proyectos:asignacion_crear", args=[proyecto.pk]), {
+            "empleado": empleado.pk, "rol_en_obra": "",
+        })
+        self.assertEqual(proyecto.gastos.count(), 0)
+
     def test_asignar_y_retirar_empleado(self):
         proyecto = Proyecto.objects.create(empresa=self.empresa, nombre="Obra propia")
         empleado = Empleado.objects.create(

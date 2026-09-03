@@ -2,11 +2,21 @@ from decimal import Decimal
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.db import transaction
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
 from .forms import AsignacionForm, GastoForm, HitoForm, ProyectoForm
 from .models import AsignacionEmpleado, GastoProyecto, HitoProyecto, Proyecto
+
+
+def _valor_mano_obra(empleado):
+    """Costo de mano de obra que representa este empleado en la obra: su
+    salario mensual, o su valor por día si se paga por día trabajado (así se
+    paga siempre la prestación de servicios)."""
+    if empleado.tipo_pago == empleado.PAGO_DIA:
+        return empleado.valor_dia
+    return empleado.salario_base
 
 
 @login_required
@@ -131,6 +141,7 @@ def gasto_eliminar(request, pk, gasto_pk):
 
 @login_required
 @require_POST
+@transaction.atomic
 def asignacion_crear(request, pk):
     proyecto = get_object_or_404(Proyecto, pk=pk, empresa=request.empresa)
     form = AsignacionForm(request.POST, empresa=request.empresa, proyecto=proyecto)
@@ -139,7 +150,31 @@ def asignacion_crear(request, pk):
         asignacion.empresa = request.empresa
         asignacion.proyecto = proyecto
         asignacion.save()
-        messages.success(request, f"{asignacion.empleado} asignado a la obra.")
+
+        # Al sumar personal a la obra, su mano de obra queda de una vez como
+        # costo de la obra (sin esto, "gastado"/"utilidad" no reflejaban lo
+        # que cuesta tener gente trabajando ahí).
+        valor = _valor_mano_obra(asignacion.empleado)
+        if valor and valor > 0:
+            GastoProyecto.objects.create(
+                empresa=request.empresa, proyecto=proyecto, categoria=GastoProyecto.MANO_OBRA,
+                concepto=(
+                    f"Mano de obra: {asignacion.empleado.nombre_completo}"
+                    + (f" ({asignacion.rol_en_obra})" if asignacion.rol_en_obra else "")
+                ),
+                valor=valor, fecha=asignacion.fecha_asignacion, registrado_por=request.user,
+            )
+            messages.success(
+                request,
+                f"{asignacion.empleado} asignado a la obra. Se registró ${valor:,.0f} de mano de obra como costo."
+                .replace(",", "."),
+            )
+        else:
+            messages.success(
+                request,
+                f"{asignacion.empleado} asignado a la obra. No tiene salario ni valor por día configurado, "
+                "así que no se registró costo de mano de obra: revisa su ficha en RR.HH.",
+            )
     else:
         messages.error(request, "Revisa los datos de la asignación (¿el empleado ya está asignado?).")
     return redirect("proyectos:proyecto_detalle", pk=proyecto.pk)
