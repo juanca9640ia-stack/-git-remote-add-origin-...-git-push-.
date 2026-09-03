@@ -30,6 +30,14 @@ class ItemBitacoraModeloTests(TestCase):
         )
         self.assertEqual(item.subtotal, Decimal("45000"))
 
+    def test_iva_es_19_por_ciento_del_subtotal(self):
+        item = ItemBitacora.objects.create(
+            sede=self.sede, descripcion="Cambio de bombillo", cantidad=Decimal("1"),
+            valor_unitario=Decimal("100000"),
+        )
+        self.assertEqual(item.iva, Decimal("19000.00"))
+        self.assertEqual(item.valor_total, Decimal("119000.00"))
+
     def test_no_esta_facturado_por_defecto(self):
         item = ItemBitacora.objects.create(sede=self.sede, descripcion="Poda de jardín")
         self.assertFalse(item.facturado)
@@ -96,6 +104,24 @@ class BitacoraVistasTests(TestCase):
         self.assertContains(resp, "Trabajo en Bombona")
         self.assertContains(resp, "Trabajo en Violetas")
         self.assertContains(resp, 'id="sede-')
+
+    def test_cada_bloque_de_sede_esta_numerado_y_muestra_iva_y_subtotal(self):
+        otra = Sede.objects.create(cliente=self.cliente, nombre="Violetas")
+        ItemBitacora.objects.create(
+            sede=self.sede, descripcion="Cambio de bombillo", cantidad=Decimal("1"),
+            valor_unitario=Decimal("100000"),
+        )
+        resp = self.client.get(f"/bitacora/{self.sede.pk}/")
+        # Los bloques de sede van numerados "1. NOMBRE" / "2. NOMBRE", igual que
+        # en la hoja de cálculo original ("1. VIOLETAS", "3. SANTO DOMINGO"...).
+        self.assertContains(resp, "1. BOMBONA")
+        self.assertContains(resp, "2. VIOLETAS")
+        self.assertContains(resp, "Mantenimiento general")
+        self.assertContains(resp, "Vr.uni")
+        self.assertContains(resp, "IVA")
+        self.assertContains(resp, "Vr.total")
+        self.assertContains(resp, "$19.000")  # IVA del ítem: 19% de 100.000
+        self.assertContains(resp, "$119.000")  # Vr.total del ítem
 
     def test_cada_bloque_de_sede_tiene_su_propio_formulario_de_alta_de_items(self):
         otra = Sede.objects.create(cliente=self.cliente, nombre="Violetas")

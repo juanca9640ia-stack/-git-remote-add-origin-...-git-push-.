@@ -93,12 +93,16 @@ def sede_detalle(request, pk):
             items = items.filter(fecha__gte=desde)
         if hasta:
             items = items.filter(fecha__lte=hasta)
+        items = list(items)
         subtotal = sum((i.subtotal for i in items), Decimal("0"))
+        iva_total = sum((i.iva for i in items), Decimal("0"))
         pendientes = [i for i in items if not i.facturado]
         bloques.append({
             "sede": s,
             "items": items,
             "subtotal": subtotal,
+            "iva_total": iva_total,
+            "total_con_iva": subtotal + iva_total,
             "pendientes_count": len(pendientes),
             "subtotal_pendiente": sum((i.subtotal for i in pendientes), Decimal("0")),
             # auto_id propio por sede: son varios <form> de alta de ítem en la
@@ -164,33 +168,40 @@ def sede_exportar_excel(request, pk):
     ws = wb.active
     ws.title = sede.nombre[:31] or "Bitácora"
 
-    ws.merge_cells("A1:H1")
-    ws["A1"] = f"Hoja de trabajo diario — {sede.nombre} ({sede.cliente})"
+    ws.merge_cells("A1:I1")
+    ws["A1"] = sede.nombre.upper()
     ws["A1"].font = Font(bold=True, size=13)
+    ws["A1"].alignment = Alignment(horizontal="center")
+    ws.append([f"{sede.cliente}"])
 
-    encabezados = ["Fecha", "Descripción", "Unidad", "Cantidad", "Valor unitario", "Subtotal", "Estado", "Notas"]
-    ws.append([])
+    encabezados = [
+        "Item", "Mantenimiento general", "Unidad", "Cantidad", "Vr.uni",
+        "Sub total", "IVA", "Vr.total", "Estado", "Notas",
+    ]
     ws.append(encabezados)
     for cell in ws[3]:
         cell.font = Font(bold=True)
 
-    total = Decimal("0")
-    for item in items:
+    subtotal = Decimal("0")
+    iva_total = Decimal("0")
+    for indice, item in enumerate(items, start=1):
         ws.append([
-            item.fecha.strftime("%d/%m/%Y"), item.descripcion, item.unidad,
-            float(item.cantidad), float(item.valor_unitario), float(item.subtotal),
+            indice, item.descripcion, item.unidad, float(item.cantidad), float(item.valor_unitario),
+            float(item.subtotal), float(item.iva), float(item.valor_total),
             "Facturado" if item.facturado else "Pendiente", item.notas,
         ])
-        total += item.subtotal
+        subtotal += item.subtotal
+        iva_total += item.iva
 
-    fila_total = ws.max_row + 2
-    ws.cell(row=fila_total, column=5, value="Total").font = Font(bold=True)
-    ws.cell(row=fila_total, column=6, value=float(total)).font = Font(bold=True)
+    fila_total = ws.max_row + 1
+    ws.cell(row=fila_total, column=5, value="Subtotal").font = Font(bold=True)
+    ws.cell(row=fila_total, column=6, value=float(subtotal)).font = Font(bold=True)
+    ws.cell(row=fila_total, column=7, value=float(iva_total)).font = Font(bold=True)
+    ws.cell(row=fila_total, column=8, value=float(subtotal + iva_total)).font = Font(bold=True)
 
-    anchos = [12, 45, 10, 10, 16, 16, 12, 30]
+    anchos = [6, 40, 8, 10, 14, 14, 12, 14, 12, 30]
     for i, ancho in enumerate(anchos, start=1):
         ws.column_dimensions[get_column_letter(i)].width = ancho
-    ws["B2"] = None  # noqa: mantener claridad de la fila 2 vacía intencional
 
     response = HttpResponse(
         content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
@@ -210,10 +221,12 @@ def sede_exportar_pdf(request, pk):
         items = items.filter(fecha__gte=desde)
     if hasta:
         items = items.filter(fecha__lte=hasta)
-    total = sum((i.subtotal for i in items), Decimal("0"))
+    items = list(items)
+    subtotal = sum((i.subtotal for i in items), Decimal("0"))
+    iva_total = sum((i.iva for i in items), Decimal("0"))
     return render(request, "bitacora/sede_pdf.html", {
-        "sede": sede, "items": items, "total": total,
-        "empresa": request.empresa, "desde": desde, "hasta": hasta,
+        "sede": sede, "items": items, "subtotal": subtotal, "iva_total": iva_total,
+        "total": subtotal + iva_total, "empresa": request.empresa, "desde": desde, "hasta": hasta,
     })
 
 

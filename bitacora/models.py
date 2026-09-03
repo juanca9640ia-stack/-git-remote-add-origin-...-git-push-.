@@ -76,9 +76,23 @@ class ItemBitacora(models.Model):
     def __str__(self):
         return f"{self.descripcion} ({self.sede})"
 
+    # IVA de referencia para la vista previa del ítem (misma tarifa general fija
+    # que usan las facturas/cotizaciones). No se cobra aquí: es solo para que la
+    # hoja muestre de una vez cuánto daría el ítem si termina en una factura,
+    # igual que la columna IVA del formato de la hoja de cálculo original.
+    IVA_PORCENTAJE = Decimal("19")
+
     @property
     def subtotal(self):
         return self.cantidad * self.valor_unitario
+
+    @property
+    def iva(self):
+        return (self.subtotal * self.IVA_PORCENTAJE / Decimal("100")).quantize(Decimal("0.01"))
+
+    @property
+    def valor_total(self):
+        return self.subtotal + self.iva
 
     @property
     def facturado(self):
