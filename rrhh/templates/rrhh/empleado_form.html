@@ -39,8 +39,15 @@
                 {% if form.telefono.errors %}<div class="text-danger small">{{ form.telefono.errors|join:" " }}</div>{% endif %}
             </div>
             <div class="col-md-6">
+                <label class="form-label">Tipo de contrato</label>
+                {{ form.tipo_contrato }}
+            </div>
+            <div class="col-md-6">
                 <label class="form-label">Tipo de pago</label>
                 {{ form.tipo_pago }}
+                <small class="text-muted" id="aviso-pago-por-dia" style="display:none; margin-top:.25rem;">
+                    La prestación de servicios siempre se paga por día trabajado.
+                </small>
             </div>
             <div class="col-md-6" id="campo-salario-base">
                 <label class="form-label">Salario base *</label>
@@ -66,18 +73,39 @@
 </div>
 <script>
 (function () {
+    var tipoContrato = document.getElementById('{{ form.tipo_contrato.id_for_label }}');
     var tipoPago = document.getElementById('{{ form.tipo_pago.id_for_label }}');
     var campoSalario = document.getElementById('campo-salario-base');
     var campoDia = document.getElementById('campo-valor-dia');
+    var avisoPorDia = document.getElementById('aviso-pago-por-dia');
 
-    function actualizar() {
+    function actualizarCamposPago() {
         var esDia = tipoPago.value === 'dia';
         campoSalario.style.display = esDia ? 'none' : '';
         campoDia.style.display = esDia ? '' : 'none';
     }
 
-    tipoPago.addEventListener('change', actualizar);
-    actualizar();
+    function actualizarSegunContrato() {
+        // No se usa "disabled": un <select> deshabilitado no se envía en el
+        // POST. Se bloquea la interacción visualmente (pointer-events) pero
+        // el valor sigue viajando con el formulario.
+        var esPrestacionServicios = tipoContrato.value === 'prestacion_servicios';
+        if (esPrestacionServicios) {
+            tipoPago.value = 'dia';
+            tipoPago.style.pointerEvents = 'none';
+            tipoPago.style.backgroundColor = '#e9ecef';
+            avisoPorDia.style.display = '';
+        } else {
+            tipoPago.style.pointerEvents = '';
+            tipoPago.style.backgroundColor = '';
+            avisoPorDia.style.display = 'none';
+        }
+        actualizarCamposPago();
+    }
+
+    tipoPago.addEventListener('change', actualizarCamposPago);
+    tipoContrato.addEventListener('change', actualizarSegunContrato);
+    actualizarSegunContrato();
 })();
 </script>
 {% endblock %}

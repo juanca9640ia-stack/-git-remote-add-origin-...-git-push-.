@@ -301,6 +301,7 @@ class EmpleadoFormTests(TestCase):
         datos = dict(
             nombre_completo="Ana Torres", documento="2001", cargo="Analista",
             email="", telefono="3001234567", fecha_contratacion="2026-08-05",
+            tipo_contrato=Empleado.TERMINO_FIJO,
             tipo_pago=Empleado.PAGO_SALARIO, salario_base="2000000", valor_dia="0",
             activo=True,
         )
@@ -325,6 +326,40 @@ class EmpleadoFormTests(TestCase):
     def test_formulario_valido_con_datos_completos(self):
         form = EmpleadoForm(data=self._datos_base())
         self.assertTrue(form.is_valid(), form.errors)
+
+    def test_prestacion_de_servicios_fuerza_pago_por_dia_en_el_formulario(self):
+        # Aunque se envíe "salario" desde el formulario, prestación de servicios
+        # siempre queda en pago por día — y por eso exige valor_dia, no salario_base.
+        form = EmpleadoForm(data=self._datos_base(
+            tipo_contrato=Empleado.PRESTACION_SERVICIOS, tipo_pago=Empleado.PAGO_SALARIO,
+            salario_base="2000000", valor_dia="80000",
+        ))
+        self.assertTrue(form.is_valid(), form.errors)
+        self.assertEqual(form.cleaned_data["tipo_pago"], Empleado.PAGO_DIA)
+
+    def test_prestacion_de_servicios_sin_valor_dia_es_invalido(self):
+        form = EmpleadoForm(data=self._datos_base(
+            tipo_contrato=Empleado.PRESTACION_SERVICIOS, valor_dia="0",
+        ))
+        self.assertFalse(form.is_valid())
+        self.assertIn("valor_dia", form.errors)
+
+    def test_guardar_empleado_de_prestacion_de_servicios_queda_pago_por_dia(self):
+        form = EmpleadoForm(data=self._datos_base(
+            documento="2002", tipo_contrato=Empleado.PRESTACION_SERVICIOS,
+            tipo_pago=Empleado.PAGO_SALARIO, valor_dia="80000",
+        ))
+        self.assertTrue(form.is_valid(), form.errors)
+        empleado = form.save()
+        self.assertEqual(empleado.tipo_pago, Empleado.PAGO_DIA)
+
+    def test_modelo_fuerza_pago_por_dia_incluso_creado_fuera_del_formulario(self):
+        empleado = Empleado.objects.create(
+            nombre_completo="Carlos Gómez", documento="2003", cargo="Contratista",
+            telefono="3000000002", tipo_contrato=Empleado.PRESTACION_SERVICIOS,
+            tipo_pago=Empleado.PAGO_SALARIO, salario_base=Decimal("2000000"), valor_dia=Decimal("90000"),
+        )
+        self.assertEqual(empleado.tipo_pago, Empleado.PAGO_DIA)
 
 
 class NominaPeriodoSemanalTests(TestCase):

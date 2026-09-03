@@ -64,6 +64,13 @@ class Empleado(models.Model):
         (PAGO_DIA, "Por día trabajado"),
     ]
 
+    TERMINO_FIJO = "termino_fijo"
+    PRESTACION_SERVICIOS = "prestacion_servicios"
+    TIPO_CONTRATO_CHOICES = [
+        (TERMINO_FIJO, "Contrato a término fijo"),
+        (PRESTACION_SERVICIOS, "Contrato de prestación de servicios"),
+    ]
+
     empresa = models.ForeignKey(
         "core.Empresa", on_delete=models.PROTECT, default=1, related_name="+",
         help_text="Inquilino (empresa) al que pertenece este registro.",
@@ -80,6 +87,10 @@ class Empleado(models.Model):
     email = models.EmailField(blank=True)
     telefono = models.CharField(max_length=30)
     fecha_contratacion = models.DateField(default=timezone.localdate)
+    tipo_contrato = models.CharField(
+        "Tipo de contrato", max_length=25, choices=TIPO_CONTRATO_CHOICES, default=TERMINO_FIJO,
+        help_text="Un contrato de prestación de servicios siempre se paga por día trabajado.",
+    )
     tipo_pago = models.CharField(
         "Tipo de pago", max_length=10, choices=TIPO_PAGO_CHOICES, default=PAGO_SALARIO
     )
@@ -103,6 +114,14 @@ class Empleado(models.Model):
 
     def get_absolute_url(self):
         return reverse("rrhh:empleado_detalle", args=[self.pk])
+
+    def save(self, *args, **kwargs):
+        # Un contrato de prestación de servicios siempre se paga por día: se
+        # refuerza aquí (no solo en el formulario) para que ninguna vía de
+        # creación/edición pueda dejarlo inconsistente.
+        if self.tipo_contrato == self.PRESTACION_SERVICIOS:
+            self.tipo_pago = self.PAGO_DIA
+        super().save(*args, **kwargs)
 
 
 class Asistencia(models.Model):

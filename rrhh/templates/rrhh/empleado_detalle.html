@@ -11,6 +11,7 @@
                 {% if empleado.activo %}<span class="badge bg-success align-middle">Activo</span>{% else %}<span class="badge bg-secondary align-middle">Inactivo</span>{% endif %}
             </h2>
             <span class="text-muted">{{ empleado.cargo }} {% if empleado.departamento %}· {{ empleado.departamento }}{% endif %}</span>
+            <span class="badge bg-light text-dark border ms-1">{{ empleado.get_tipo_contrato_display }}</span>
         </div>
     </div>
     <a href="{% url 'rrhh:empleado_editar' empleado.pk %}" class="btn btn-outline-secondary"><i class="bi bi-pencil me-1"></i>Editar</a>

@@ -27,7 +27,7 @@ class EmpleadoForm(forms.ModelForm):
         model = Empleado
         fields = [
             "nombre_completo", "documento", "cargo", "departamento",
-            "email", "telefono", "fecha_contratacion", "tipo_pago",
+            "email", "telefono", "fecha_contratacion", "tipo_contrato", "tipo_pago",
             "salario_base", "valor_dia", "activo",
         ]
         widgets = {
@@ -44,6 +44,12 @@ class EmpleadoForm(forms.ModelForm):
 
     def clean(self):
         cleaned_data = super().clean()
+        # Un contrato de prestación de servicios siempre se paga por día: se
+        # fuerza aquí (además de en el modelo) para que la validación de abajo
+        # exija el campo correcto, sin importar lo que haya llegado del formulario.
+        if cleaned_data.get("tipo_contrato") == Empleado.PRESTACION_SERVICIOS:
+            cleaned_data["tipo_pago"] = Empleado.PAGO_DIA
+
         tipo_pago = cleaned_data.get("tipo_pago")
         if tipo_pago == Empleado.PAGO_SALARIO and not cleaned_data.get("salario_base"):
             self.add_error("salario_base", "Ingresa el salario base para este tipo de pago.")
