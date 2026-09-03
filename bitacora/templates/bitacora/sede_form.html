@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}{% if sede %}Editar sede{% else %}Nueva sede{% endif %}{% endblock %}
+{% block content %}
+<h2 class="mb-4">{% if sede %}Editar sede{% else %}Nueva sede{% endif %}</h2>
+<div class="card card-kpi p-4" style="max-width:560px;">
+    <form method="post">
+        {% csrf_token %}
+        <div class="row g-3">
+            <div class="col-12">
+                <label class="form-label">Cliente</label>
+                {{ form.cliente }}
+            </div>
+            <div class="col-12">
+                <label class="form-label">Nombre de la sede</label>
+                {{ form.nombre }}
+            </div>
+            <div class="col-12">
+                <label class="form-label">Dirección</label>
+                {{ form.direccion }}
+            </div>
+            <div class="col-12 form-check">
+                {{ form.activa }}
+                <label class="form-check-label">Activa</label>
+            </div>
+        </div>
+        <div class="mt-4">
+            <button type="submit" class="btn btn-primary">Guardar</button>
+            <a href="{% url 'bitacora:sede_lista' %}" class="btn btn-outline-secondary">Cancelar</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

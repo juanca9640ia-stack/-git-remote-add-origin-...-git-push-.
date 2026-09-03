@@ -3,7 +3,7 @@ from django.core.management.base import BaseCommand
 
 GRUPOS_PERMISOS = {
     "Administración": None,  # todos los permisos
-    "Ventas": ["ventas"],
+    "Ventas": ["ventas", "bitacora"],
     "Inventario": ["inventario"],
     "Compras": ["compras"],
     "Finanzas": ["finanzas"],
@@ -12,6 +12,7 @@ GRUPOS_PERMISOS = {
     "Proyectos": ["proyectos"],
     "Documentos": ["documentos"],
     "Comunicaciones": ["comunicaciones"],
+    "Bitácora": ["bitacora"],
 }
 
 
@@ -39,5 +40,5 @@ class Command(BaseCommand):
 
         self.stdout.write(self.style.SUCCESS(
             "Grupos: Administración, Ventas, Inventario, Compras, Finanzas, Producción, RR.HH., "
-            "Proyectos, Documentos, Comunicaciones"
+            "Proyectos, Documentos, Comunicaciones, Bitácora"
         ))

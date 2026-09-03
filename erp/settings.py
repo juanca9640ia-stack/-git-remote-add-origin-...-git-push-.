@@ -84,6 +84,7 @@ INSTALLED_APPS = [
     'proyectos',
     'documentos',
     'comunicaciones',
+    'bitacora',
     'administracion',
 ]
 

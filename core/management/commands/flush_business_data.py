@@ -1,6 +1,7 @@
 from django.core.management.base import BaseCommand
 from django.db import connection, transaction
 
+from bitacora.models import ItemBitacora, Sede
 from comunicaciones.models import Comunicado
 from compras.models import Compra, LineaCompra, Proveedor
 from documentos.models import Documento
@@ -13,6 +14,7 @@ from ventas.models import Cliente, Cotizacion, CuentaCobro, LineaCotizacion, Lin
 
 MODELOS_A_BORRAR = [
     Documento, Comunicado,
+    ItemBitacora, Sede,
     PagoCliente, PagoProveedor, CuentaPorCobrar, CuentaPorPagar,
     AsignacionEmpleado, GastoProyecto, HitoProyecto, Proyecto,
     AbonoPrestamo, Prestamo, DetalleNomina, Nomina, Asistencia, Empleado, Departamento,
@@ -58,6 +60,10 @@ class Command(BaseCommand):
 
             # Comunicaciones: independiente, sin relaciones que proteja nada.
             Comunicado.objects.all().delete()
+
+            # Bitácora (antes de Cliente, que Sede protege, y de Cotizacion/CuentaCobro).
+            ItemBitacora.objects.all().delete()
+            Sede.objects.all().delete()
 
             # Finanzas: protegen venta/compra/nómina hasta que se borren sus pagos y cuentas.
             PagoCliente.objects.all().delete()

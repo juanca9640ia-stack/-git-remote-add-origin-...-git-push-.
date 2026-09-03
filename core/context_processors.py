@@ -20,6 +20,7 @@ NOMBRES_SECCION = {
     "documentos": "Documentos",
     "comunicaciones": "Comunicaciones",
     "administracion": "Administración",
+    "bitacora": "Bitácora",
 }
 
 # Casos que no siguen el patrón genérico "_lista/_crear/_editar/_detalle" de abajo.

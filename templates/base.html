@@ -126,6 +126,11 @@
                 <a href="{% url 'ventas:cliente_lista' %}" class="sap-nav-link {% if 'clientes' in request.path %}active{% endif %}" title="Clientes">
                     <i class="bi bi-people"></i><span>Clientes</span>
                 </a>
+                {% if perms.bitacora %}
+                <a href="{% url 'bitacora:sede_lista' %}" class="sap-nav-link {% if request.resolver_match.namespace == 'bitacora' %}active{% endif %}" title="Bitácora">
+                    <i class="bi bi-journal-text"></i><span>Bitácora</span>
+                </a>
+                {% endif %}
             </div>
         </div>
         {% endif %}

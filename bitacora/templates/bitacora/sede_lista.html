@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Bitácora — Sedes{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2 class="mb-0">Bitácora por sede</h2>
+    <a href="{% url 'bitacora:sede_crear' %}" class="btn btn-primary"><i class="bi bi-plus-lg me-1"></i>Nueva sede</a>
+</div>
+<p class="text-muted">Registra el trabajo diario que se presenta en cada sede del cliente para luego generar la factura o cotización sin volver a escribir nada.</p>
+
+<form class="row g-2 mb-3" method="get">
+    <div class="col-auto">
+        <input type="text" name="q" value="{{ query }}" class="form-control" placeholder="Buscar sede por nombre">
+    </div>
+    <div class="col-auto">
+        <button class="btn btn-outline-secondary" type="submit">Buscar</button>
+    </div>
+</form>
+
+<div class="card card-kpi">
+    <div class="table-responsive">
+        <table class="table table-hover mb-0 align-middle">
+            <thead><tr><th>Sede</th><th>Cliente</th><th>Dirección</th><th>Estado</th><th></th></tr></thead>
+            <tbody>
+            {% for sede in sedes %}
+                <tr onclick="window.location='{% url 'bitacora:sede_detalle' sede.pk %}'" style="cursor:pointer">
+                    <td>{{ sede.nombre }}</td>
+                    <td>{{ sede.cliente.nombre }}</td>
+                    <td>{{ sede.direccion|default:"—" }}</td>
+                    <td>
+                        {% if sede.activa %}<span class="badge bg-success">Activa</span>
+                        {% else %}<span class="badge bg-secondary">Inactiva</span>{% endif %}
+                    </td>
+                    <td class="text-end">
+                        <a href="{% url 'bitacora:sede_editar' sede.pk %}" class="btn btn-sm btn-outline-secondary" onclick="event.stopPropagation()">Editar</a>
+                    </td>
+                </tr>
+            {% empty %}
+                <tr><td colspan="5" class="text-center text-muted py-4">No hay sedes registradas todavía</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
