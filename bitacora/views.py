@@ -43,10 +43,14 @@ def sede_form(request, pk=None):
             obj.empresa = request.empresa
             obj.save()
             messages.success(request, f"Sede '{obj.nombre}' guardada correctamente.")
-            # El alta rápida desde la lista de sedes se queda en la misma hoja para
-            # poder seguir agregando sedes una tras otra, en vez de saltar al detalle.
-            if not sede and request.POST.get("origen") == "lista":
+            # El alta rápida desde la lista de sedes, o desde la ficha del cliente,
+            # se queda en la misma hoja para poder seguir agregando sedes seguidas
+            # en vez de saltar al detalle de la sede recién creada.
+            origen = request.POST.get("origen")
+            if not sede and origen == "lista":
                 return redirect("bitacora:sede_lista")
+            if not sede and origen == "cliente":
+                return redirect("ventas:cliente_detalle", pk=obj.cliente_id)
             return redirect("bitacora:sede_detalle", pk=obj.pk)
     else:
         initial = {}

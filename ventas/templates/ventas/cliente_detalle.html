@@ -115,6 +115,42 @@
             </div>
         </div>
 
+        {% if perms.bitacora %}
+        <div class="card card-kpi mt-3">
+            <div class="card-header bg-white fw-bold">Sedes (Bitácora de trabajo diario)</div>
+            <ul class="list-group list-group-flush">
+                {% for sede in sedes %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <a href="{% url 'bitacora:sede_detalle' sede.pk %}" class="text-decoration-none">
+                            <i class="bi bi-geo-alt me-1"></i>{{ sede.nombre }}
+                            {% if sede.direccion %}<span class="text-muted small ms-1">{{ sede.direccion }}</span>{% endif %}
+                        </a>
+                        {% if not sede.activa %}<span class="badge bg-secondary">Inactiva</span>{% endif %}
+                    </li>
+                {% empty %}
+                    <li class="list-group-item text-center text-muted py-3">Sin sedes registradas</li>
+                {% endfor %}
+            </ul>
+            <div class="card-body pt-3">
+                <form method="post" action="{% url 'bitacora:sede_crear' %}" class="row g-2 align-items-end">
+                    {% csrf_token %}
+                    <input type="hidden" name="cliente" value="{{ cliente.pk }}">
+                    <input type="hidden" name="activa" value="on">
+                    <input type="hidden" name="origen" value="cliente">
+                    <div class="col">
+                        <input type="text" name="nombre" class="form-control form-control-sm" placeholder="Nombre de la nueva sede" required>
+                    </div>
+                    <div class="col">
+                        <input type="text" name="direccion" class="form-control form-control-sm" placeholder="Dirección (opcional)">
+                    </div>
+                    <div class="col-auto">
+                        <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-plus-lg me-1"></i>Agregar sede</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        {% endif %}
+
         {% if perms.documentos %}
         <div class="card card-kpi mt-3">
             <div class="card-header bg-white fw-bold d-flex justify-content-between align-items-center">

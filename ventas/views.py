@@ -72,6 +72,7 @@ def cliente_lista(request):
 def cliente_detalle(request, pk):
     """Vista 360°: todo lo que hay que saber de un cliente en una sola pantalla
     (compras, cotizaciones, proyectos, cartera, pagos, cuentas de cobro y documentos)."""
+    from bitacora.models import Sede
     from finanzas.models import CuentaPorCobrar, PagoCliente
 
     cliente = get_object_or_404(Cliente, pk=pk, empresa=request.empresa)
@@ -117,6 +118,7 @@ def cliente_detalle(request, pk):
         "proyectos": cliente.proyectos.all()[:10],
         "proyectos_count": cliente.proyectos.count(),
         "pagos": pagos[:10],
+        "sedes": Sede.objects.filter(cliente=cliente, empresa=request.empresa),
     }
     return render(request, "ventas/cliente_detalle.html", context)
 

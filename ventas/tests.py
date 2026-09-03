@@ -615,3 +615,21 @@ class ClienteDetalle360Tests(TestCase):
         pagos = list(resp.context["pagos"])
         self.assertEqual(len(pagos), 1)
         self.assertEqual(pagos[0].monto, Decimal("50000"))
+
+    def test_muestra_las_sedes_del_cliente(self):
+        from bitacora.models import Sede
+
+        sede = Sede.objects.create(cliente=self.cliente, nombre="Violetas")
+        resp = self.client.get(f"/ventas/clientes/{self.cliente.pk}/")
+        self.assertIn(sede, list(resp.context["sedes"]))
+        self.assertContains(resp, "Violetas")
+
+    def test_agregar_sede_desde_la_ficha_del_cliente_se_queda_en_la_misma_hoja(self):
+        from bitacora.models import Sede
+
+        resp = self.client.post("/bitacora/nueva/", {
+            "cliente": self.cliente.pk, "nombre": "San Rafael", "direccion": "",
+            "activa": "on", "origen": "cliente",
+        })
+        self.assertRedirects(resp, f"/ventas/clientes/{self.cliente.pk}/")
+        self.assertTrue(Sede.objects.filter(nombre="San Rafael", cliente=self.cliente).exists())
