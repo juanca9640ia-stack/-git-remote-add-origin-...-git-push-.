@@ -43,7 +43,7 @@
             <thead><tr><th>Sede</th><th>Cliente</th><th>Dirección</th><th>Estado</th><th></th></tr></thead>
             <tbody>
             {% for sede in sedes %}
-                <tr onclick="window.location='{% url 'bitacora:sede_detalle' sede.pk %}'" style="cursor:pointer">
+                <tr onclick="window.location='{% url 'bitacora:sede_detalle' sede.pk %}#sede-{{ sede.pk }}'" style="cursor:pointer">
                     <td>{{ sede.nombre }}</td>
                     <td>{{ sede.cliente.nombre }}</td>
                     <td>{{ sede.direccion|default:"—" }}</td>

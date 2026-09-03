@@ -76,26 +76,41 @@ def _rango_por_defecto(request):
 
 @login_required
 def sede_detalle(request, pk):
+    """Hoja de trabajo diario del cliente completo: todas sus sedes, una tras
+    otra en la misma página (cada una con su propia alta de ítems y su propia
+    tabla), tal como venía la hoja de cálculo original. `pk` solo identifica
+    con qué sede se entró, para saber a cuál volver tras un alta rápida."""
     sede = get_object_or_404(Sede.objects.select_related("cliente"), pk=pk, empresa=request.empresa)
+    cliente = sede.cliente
     desde, hasta = _rango_por_defecto(request)
 
-    items = sede.items.all()
-    if desde:
-        items = items.filter(fecha__gte=desde)
-    if hasta:
-        items = items.filter(fecha__lte=hasta)
+    sedes_cliente = Sede.objects.filter(cliente=cliente, empresa=request.empresa).order_by("nombre")
 
-    subtotal = sum((i.subtotal for i in items), Decimal("0"))
-    pendientes = [i for i in items if not i.facturado]
-    subtotal_pendiente = sum((i.subtotal for i in pendientes), Decimal("0"))
-
-    otras_sedes = Sede.objects.filter(cliente=sede.cliente, empresa=request.empresa).exclude(pk=sede.pk)
+    bloques = []
+    for s in sedes_cliente:
+        items = s.items.all()
+        if desde:
+            items = items.filter(fecha__gte=desde)
+        if hasta:
+            items = items.filter(fecha__lte=hasta)
+        subtotal = sum((i.subtotal for i in items), Decimal("0"))
+        pendientes = [i for i in items if not i.facturado]
+        bloques.append({
+            "sede": s,
+            "items": items,
+            "subtotal": subtotal,
+            "pendientes_count": len(pendientes),
+            "subtotal_pendiente": sum((i.subtotal for i in pendientes), Decimal("0")),
+            # auto_id propio por sede: son varios <form> de alta de ítem en la
+            # misma página y los id= de sus campos no pueden repetirse.
+            "item_form": ItemBitacoraForm(
+                initial={"fecha": timezone.localdate()}, auto_id=f"id_item_{s.pk}_%s",
+            ),
+        })
 
     return render(request, "bitacora/sede_detalle.html", {
-        "sede": sede, "items": items, "subtotal": subtotal, "otras_sedes": otras_sedes,
-        "pendientes_count": len(pendientes), "subtotal_pendiente": subtotal_pendiente,
+        "cliente": cliente, "sede": sede, "sedes": sedes_cliente, "bloques": bloques,
         "desde": desde, "hasta": hasta, "ver_todo": desde is None,
-        "item_form": ItemBitacoraForm(initial={"fecha": timezone.localdate()}),
     })
 
 

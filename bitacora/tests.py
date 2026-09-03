@@ -82,12 +82,26 @@ class BitacoraVistasTests(TestCase):
             self.assertRedirects(resp, "/bitacora/")
         self.assertEqual(Sede.objects.filter(cliente=self.cliente).count(), 4)  # + Bombona del setUp
 
-    def test_sede_detalle_muestra_las_otras_sedes_del_mismo_cliente(self):
+    def test_sede_detalle_muestra_todas_las_sedes_del_cliente_apiladas_en_una_hoja(self):
+        otra = Sede.objects.create(cliente=self.cliente, nombre="Violetas")
+        ItemBitacora.objects.create(sede=self.sede, descripcion="Trabajo en Bombona")
+        ItemBitacora.objects.create(sede=otra, descripcion="Trabajo en Violetas")
+
+        resp = self.client.get(f"/bitacora/{self.sede.pk}/")
+        sedes_en_bloques = [b["sede"] for b in resp.context["bloques"]]
+        self.assertIn(self.sede, sedes_en_bloques)
+        self.assertIn(otra, sedes_en_bloques)
+        self.assertContains(resp, "Bombona")
+        self.assertContains(resp, "Violetas")
+        self.assertContains(resp, "Trabajo en Bombona")
+        self.assertContains(resp, "Trabajo en Violetas")
+        self.assertContains(resp, 'id="sede-')
+
+    def test_cada_bloque_de_sede_tiene_su_propio_formulario_de_alta_de_items(self):
         otra = Sede.objects.create(cliente=self.cliente, nombre="Violetas")
         resp = self.client.get(f"/bitacora/{self.sede.pk}/")
-        self.assertIn(otra, list(resp.context["otras_sedes"]))
-        self.assertContains(resp, "Violetas")
-        self.assertContains(resp, "Otras sedes de")
+        self.assertContains(resp, f'action="/bitacora/{self.sede.pk}/items/nuevo/"')
+        self.assertContains(resp, f'action="/bitacora/{otra.pk}/items/nuevo/"')
 
     def test_agregar_sede_desde_la_hoja_de_otra_sede_se_queda_en_la_hoja_de_origen(self):
         resp = self.client.post("/bitacora/nueva/", {

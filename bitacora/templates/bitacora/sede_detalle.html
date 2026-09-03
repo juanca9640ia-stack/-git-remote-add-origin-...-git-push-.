@@ -1,33 +1,19 @@
 {% extends "base.html" %}
 {% load money %}
-{% block title %}{{ sede.nombre }} — Bitácora{% endblock %}
+{% block title %}{{ cliente.nombre }} — Bitácora{% endblock %}
 {% block content %}
 <div class="d-flex justify-content-between align-items-start mb-3 flex-wrap gap-2">
     <div>
-        <h2 class="mb-0">{{ sede.nombre }}</h2>
-        <div class="text-muted">{{ sede.cliente.nombre }}{% if sede.direccion %} · {{ sede.direccion }}{% endif %}</div>
-    </div>
-    <div class="d-flex gap-2 flex-wrap">
-        <a href="{% url 'bitacora:sede_editar' sede.pk %}" class="btn btn-outline-secondary btn-sm">Editar sede</a>
-        <a href="{% url 'bitacora:sede_exportar_excel' sede.pk %}?desde={{ desde }}&hasta={{ hasta }}{% if ver_todo %}&todo=1{% endif %}" class="btn btn-outline-success btn-sm"><i class="bi bi-file-earmark-excel me-1"></i>Descargar Excel</a>
-        <a href="{% url 'bitacora:sede_exportar_pdf' sede.pk %}?desde={{ desde }}&hasta={{ hasta }}{% if ver_todo %}&todo=1{% endif %}" target="_blank" class="btn btn-outline-danger btn-sm"><i class="bi bi-file-earmark-pdf me-1"></i>Ver / Descargar PDF</a>
+        <h2 class="mb-0">Bitácora — {{ cliente.nombre }}</h2>
+        <div class="text-muted">{{ sedes|length }} sede{{ sedes|length|pluralize }}</div>
     </div>
 </div>
 
 <div class="card card-kpi p-3 mb-3">
-    <h6 class="mb-2">Otras sedes de {{ sede.cliente.nombre }}</h6>
-    {% if otras_sedes %}
-    <div class="d-flex flex-wrap gap-2 mb-3">
-        {% for otra in otras_sedes %}
-            <a href="{% url 'bitacora:sede_detalle' otra.pk %}" class="btn btn-sm btn-outline-secondary">
-                <i class="bi bi-geo-alt me-1"></i>{{ otra.nombre }}
-            </a>
-        {% endfor %}
-    </div>
-    {% endif %}
+    <h6 class="mb-2">Agregar sede</h6>
     <form method="post" action="{% url 'bitacora:sede_crear' %}" class="row g-2 align-items-end">
         {% csrf_token %}
-        <input type="hidden" name="cliente" value="{{ sede.cliente_id }}">
+        <input type="hidden" name="cliente" value="{{ cliente.pk }}">
         <input type="hidden" name="activa" value="on">
         <input type="hidden" name="origen" value="sede">
         <input type="hidden" name="volver" value="{{ sede.pk }}">
@@ -43,7 +29,15 @@
     </form>
 </div>
 
-<form class="row g-2 mb-3 align-items-end" method="get">
+{% if sedes|length > 1 %}
+<div class="d-flex flex-wrap gap-2 mb-3">
+    {% for s in sedes %}
+        <a href="#sede-{{ s.pk }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-geo-alt me-1"></i>{{ s.nombre }}</a>
+    {% endfor %}
+</div>
+{% endif %}
+
+<form class="row g-2 mb-4 align-items-end" method="get">
     <div class="col-auto">
         <label class="form-label mb-0 small text-muted">Desde</label>
         <input type="date" name="desde" value="{{ desde }}" class="form-control form-control-sm">
@@ -60,72 +54,83 @@
     </div>
 </form>
 
-<div class="row g-3 mb-3">
-    <div class="col-md-4">
-        <div class="card card-kpi p-3">
-            <div class="text-muted small">Total del período</div>
-            <div class="fs-4 fw-bold">{{ subtotal|cop }}</div>
+{% for bloque in bloques %}
+<div id="sede-{{ bloque.sede.pk }}" class="card card-kpi p-3 mb-4">
+    <div class="d-flex justify-content-between align-items-start mb-3 flex-wrap gap-2">
+        <div>
+            <h4 class="mb-0">{{ bloque.sede.nombre }}</h4>
+            {% if bloque.sede.direccion %}<div class="text-muted small">{{ bloque.sede.direccion }}</div>{% endif %}
+        </div>
+        <div class="d-flex gap-2 flex-wrap">
+            <a href="{% url 'bitacora:sede_editar' bloque.sede.pk %}" class="btn btn-outline-secondary btn-sm">Editar sede</a>
+            <a href="{% url 'bitacora:sede_exportar_excel' bloque.sede.pk %}?desde={{ desde }}&hasta={{ hasta }}{% if ver_todo %}&todo=1{% endif %}" class="btn btn-outline-success btn-sm"><i class="bi bi-file-earmark-excel me-1"></i>Excel</a>
+            <a href="{% url 'bitacora:sede_exportar_pdf' bloque.sede.pk %}?desde={{ desde }}&hasta={{ hasta }}{% if ver_todo %}&todo=1{% endif %}" target="_blank" class="btn btn-outline-danger btn-sm"><i class="bi bi-file-earmark-pdf me-1"></i>PDF</a>
         </div>
     </div>
-    <div class="col-md-4">
-        <div class="card card-kpi p-3">
-            <div class="text-muted small">Pendiente por facturar</div>
-            <div class="fs-4 fw-bold text-warning">{{ subtotal_pendiente|cop }}</div>
-            <div class="text-muted small">{{ pendientes_count }} ítem(s) sin documento</div>
+
+    <div class="row g-3 mb-3">
+        <div class="col-md-4">
+            <div class="card card-kpi p-3">
+                <div class="text-muted small">Total del período</div>
+                <div class="fs-5 fw-bold">{{ bloque.subtotal|cop }}</div>
+            </div>
         </div>
-    </div>
-    <div class="col-md-4">
-        <div class="card card-kpi p-3 d-flex flex-column gap-2">
-            <div class="text-muted small mb-1">Generar documento con lo pendiente</div>
-            <div class="d-flex gap-2">
-                <form method="post" action="{% url 'bitacora:sede_generar_cuenta_cobro' sede.pk %}" class="flex-fill">
-                    {% csrf_token %}
-                    <button type="submit" class="btn btn-outline-primary btn-sm w-100" {% if not pendientes_count %}disabled{% endif %}>Cuenta de cobro</button>
-                </form>
-                <form method="post" action="{% url 'bitacora:sede_generar_cotizacion' sede.pk %}" class="flex-fill">
-                    {% csrf_token %}
-                    <button type="submit" class="btn btn-outline-primary btn-sm w-100" {% if not pendientes_count %}disabled{% endif %}>Cotización</button>
-                </form>
+        <div class="col-md-4">
+            <div class="card card-kpi p-3">
+                <div class="text-muted small">Pendiente por facturar</div>
+                <div class="fs-5 fw-bold text-warning">{{ bloque.subtotal_pendiente|cop }}</div>
+                <div class="text-muted small">{{ bloque.pendientes_count }} ítem(s) sin documento</div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card card-kpi p-3 d-flex flex-column gap-2">
+                <div class="text-muted small mb-1">Generar documento con lo pendiente</div>
+                <div class="d-flex gap-2">
+                    <form method="post" action="{% url 'bitacora:sede_generar_cuenta_cobro' bloque.sede.pk %}" class="flex-fill">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-outline-primary btn-sm w-100" {% if not bloque.pendientes_count %}disabled{% endif %}>Cuenta de cobro</button>
+                    </form>
+                    <form method="post" action="{% url 'bitacora:sede_generar_cotizacion' bloque.sede.pk %}" class="flex-fill">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-outline-primary btn-sm w-100" {% if not bloque.pendientes_count %}disabled{% endif %}>Cotización</button>
+                    </form>
+                </div>
             </div>
         </div>
     </div>
-</div>
 
-<div class="card card-kpi p-3 mb-3">
     <h6 class="mb-3">Agregar ítem del día</h6>
-    <form method="post" action="{% url 'bitacora:item_crear' sede.pk %}" class="row g-2 align-items-end">
+    <form method="post" action="{% url 'bitacora:item_crear' bloque.sede.pk %}" class="row g-2 align-items-end mb-3">
         {% csrf_token %}
         <div class="col-md-2">
             <label class="form-label small text-muted mb-0">Fecha</label>
-            {{ item_form.fecha }}
+            {{ bloque.item_form.fecha }}
         </div>
         <div class="col-md-3">
             <label class="form-label small text-muted mb-0">Descripción del trabajo</label>
-            {{ item_form.descripcion }}
+            {{ bloque.item_form.descripcion }}
         </div>
         <div class="col-md-1">
             <label class="form-label small text-muted mb-0">Unidad</label>
-            {{ item_form.unidad }}
+            {{ bloque.item_form.unidad }}
         </div>
         <div class="col-md-1">
             <label class="form-label small text-muted mb-0">Cant.</label>
-            {{ item_form.cantidad }}
+            {{ bloque.item_form.cantidad }}
         </div>
         <div class="col-md-2">
             <label class="form-label small text-muted mb-0">Valor unitario</label>
-            {{ item_form.valor_unitario }}
+            {{ bloque.item_form.valor_unitario }}
         </div>
         <div class="col-md-2">
             <label class="form-label small text-muted mb-0">Notas</label>
-            {{ item_form.notas }}
+            {{ bloque.item_form.notas }}
         </div>
         <div class="col-md-1">
             <button type="submit" class="btn btn-primary w-100"><i class="bi bi-plus-lg"></i></button>
         </div>
     </form>
-</div>
 
-<div class="card card-kpi">
     <div class="table-responsive">
         <table class="table table-hover mb-0 align-middle">
             <thead>
@@ -135,7 +140,7 @@
             </tr>
             </thead>
             <tbody>
-            {% for item in items %}
+            {% for item in bloque.items %}
                 <tr>
                     <td>{{ item.fecha|date:"d/m/Y" }}</td>
                     <td>{{ item.descripcion }}{% if item.notas %}<div class="text-muted small">{{ item.notas }}</div>{% endif %}</td>
@@ -156,7 +161,7 @@
                     </td>
                     <td class="text-end">
                         {% if not item.facturado %}
-                        <form method="post" action="{% url 'bitacora:item_eliminar' sede.pk item.pk %}" onsubmit="return confirm('¿Eliminar este ítem?');">
+                        <form method="post" action="{% url 'bitacora:item_eliminar' bloque.sede.pk item.pk %}" onsubmit="return confirm('¿Eliminar este ítem?');">
                             {% csrf_token %}
                             <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
                         </form>
@@ -170,4 +175,5 @@
         </table>
     </div>
 </div>
+{% endfor %}
 {% endblock %}
